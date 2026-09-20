@@ -659,11 +659,14 @@
       return;
     }
     var session = ensureSession(todayIso, wk);
-    viewEl.innerHTML = installBannerHtml() + sessionEditorHtml(session, true);
+    /* Si hoy no toca entrenar, la sesion salio de elegir un dia a mano: hay que
+       poder volver a esa eleccion, o queda sin salida. */
+    var offDay = !state.template[wk];
+    viewEl.innerHTML = installBannerHtml() + sessionEditorHtml(session, true, offDay);
     wireSessionEditor(session, true);
   }
 
-  function sessionEditorHtml(session, isToday){
+  function sessionEditorHtml(session, isToday, offDay){
     var summary = setsSummary(session);
 
     /* No se mide cuanto duro el entreno: solo interesa si el dia esta cerrado. */
@@ -680,6 +683,9 @@
     html += '    <span class="pill">'+summary.done+'/'+summary.total+' ejercicios</span>';
     html += '  </div>';
     html += '  <div class="row">' + dayStatus + '</div>';
+    if(offDay){
+      html += '  <div class="row"><button class="btn btn-ghost small" data-action="changeDay">← Elegir otro día</button></div>';
+    }
     html += '</div>';
 
     if(session.exercises.length === 0){
@@ -803,6 +809,31 @@
 
     /* Reemplazar = cambiar el nombre, solo para esta sesion. La plantilla no se
        toca: el proximo lunes vuelve el ejercicio original. */
+    /* Descartar la sesion devuelve a la pantalla de eleccion. Si ya hay algo
+       cargado, se pierde: por eso pide confirmacion. */
+    var changeDayBtn = viewEl.querySelector('[data-action="changeDay"]');
+    if(changeDayBtn){
+      changeDayBtn.addEventListener('click', function(){
+        var hasData = session.exercises.some(function(e){
+          return e.done || (e.weight != null && e.weight !== '') || e.minutes;
+        });
+        if(hasData && changeDayBtn.dataset.armed !== '1'){
+          changeDayBtn.dataset.armed = '1';
+          changeDayBtn.textContent = 'Se pierde lo cargado. ¿Seguro?';
+          changeDayBtn.classList.add('btn-danger');
+          setTimeout(function(){
+            if(!changeDayBtn.isConnected) return;
+            changeDayBtn.dataset.armed = '0';
+            changeDayBtn.textContent = '← Elegir otro día';
+            changeDayBtn.classList.remove('btn-danger');
+          }, 4000);
+          return;
+        }
+        delete state.sessions[session.date];
+        saveSessions(); render();
+      });
+    }
+
     var restoreBtn = viewEl.querySelector('[data-action="restoreFromTemplate"]');
     if(restoreBtn){
       restoreBtn.addEventListener('click', function(){

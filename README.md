@@ -83,6 +83,10 @@ El archivo que genera "Exportar" tiene esta forma:
 ## Funcionalidad
 
 - **Hoy**: arma el día según la plantilla semanal. Cada ejercicio es una tarjeta con el peso y un tilde; el placeholder del peso muestra el último registrado para ese ejercicio. Permite agregar un ejercicio suelto (fuerza o cardio) o copiar los ejercicios de otro día.
+- **Elegir otro día (←)**: cuando hoy no es un día de la rutina y se armó el entreno eligiendo un día
+  a mano, aparece un botón para volver a esa elección. Sin él quedaba sin salida: al crearse la sesión,
+  `renderHoy` deja de mostrar la pantalla de elección y no había forma de deshacerla. Descarta la
+  sesión, así que si ya hay pesos o tildes cargados pide doble confirmación.
 - **Recuperar un día vacío**: si una sesión se quedó sin ejercicios, ofrece un botón para volver a
   cargarlos desde la plantilla de ese día. Sin esto era un callejón sin salida: `ensureSession` clona
   la plantilla al crear la sesión y nunca más, así que una sesión vacía se quedaba vacía para siempre.
@@ -141,4 +145,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v8`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v9`) y subir ese número invalida el cache viejo.
