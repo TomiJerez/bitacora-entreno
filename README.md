@@ -82,7 +82,8 @@ El archivo que genera "Exportar" tiene esta forma:
 
 ## Funcionalidad
 
-- **Hoy**: arma el día según la plantilla semanal. Cada ejercicio es una tarjeta con el peso y un tilde; el placeholder del peso muestra el último registrado para ese ejercicio. Permite sacar ejercicios del día, agregar uno suelto (fuerza o cardio), o copiar los ejercicios de otro día.
+- **Hoy**: arma el día según la plantilla semanal. Cada ejercicio es una tarjeta con el peso y un tilde; el placeholder del peso muestra el último registrado para ese ejercicio. Permite agregar un ejercicio suelto (fuerza o cardio) o copiar los ejercicios de otro día.
+- **Reemplazar (✎)**: cambia el nombre del ejercicio **solo en esa sesión** — sirve para cuando la máquina está ocupada o la cambiaron. La plantilla no se toca, así que la semana siguiente vuelve el original. Enter confirma, Escape cancela, y un nombre vacío deja el anterior.
 - **Checklist por ejercicio**: se marca el ejercicio entero, no serie por serie. El contador de arriba lleva el progreso (`2/4 ejercicios`).
 - **Cardio**: las tarjetas de cardio no piden kg; se elige la duración en el momento entre las opciones disponibles (10 o 15 min). Volver a tocar la opción elegida la desmarca.
 - **Terminar día**: un botón cierra el día y lo marca como terminado (queda visible en el Historial). Se puede reabrir si se cerró por error. No se mide cuánto duró el entreno.
@@ -105,6 +106,12 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
 ## Notas de diseño / decisiones tomadas
 
 - Sin frameworks ni librerías externas (bundle mínimo, cero dependencias que puedan romperse).
+- Los ejercicios que vienen de la rutina **no se pueden borrar desde "Hoy"**: solo se reemplazan. Un
+  toque accidental en el gimnasio no debería costar una tarjeta, y borrar no tiene mucho sentido —
+  la sesión es el registro de lo que hiciste. Los que agregás vos ese día (a mano o copiados de otro
+  día) llevan `custom: true` y sí muestran la ✕, porque si no, un agregado por error quedaría pegado
+  sin forma de sacarlo. Para cambiar la rutina de verdad está la tab Rutina, donde la ✕ sí es
+  permanente.
 - El registro es deliberadamente grueso: el peso máximo y un tilde por ejercicio, en vez de kg y reps
   por serie. La versión anterior pedía cuatro filas por ejercicio y en la práctica era mucho tipeo en
   el gimnasio. No hay timer de descanso por la misma razón.
@@ -131,4 +138,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v6`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v7`) y subir ese número invalida el cache viejo.

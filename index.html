@@ -158,6 +158,11 @@
   }
 
   /* Fila principal del ejercicio: el peso (o la duracion) y el tilde. */
+  .ex-actions{display:flex; gap:6px; flex:none;}
+  .ex-rename{
+    width:100%; font-weight:700; font-size:15.5px; border:1px solid var(--accent);
+    background:var(--bg); color:var(--text); border-radius:8px; padding:5px 8px;
+  }
   .ex-main{display:flex; align-items:flex-end; gap:10px; margin-top:10px;}
   .ex-main .field{flex:1;}
   .ex-card.done .num-input{border-color:var(--ok); background:var(--ok-bg);}
@@ -716,7 +721,14 @@
     html += '      <div class="ex-name">'+escapeHtml(e.name)+'</div>';
     html += '      <div class="ex-target">'+(isCardio ? 'cardio' : e.targetSets+'×'+escapeHtml(e.targetReps))+'</div>';
     html += '    </div>';
-    html += '    <button class="icon-btn danger" data-action="removeEx" data-ex="'+i+'" aria-label="Quitar ejercicio">✕</button>';
+    /* Los ejercicios que vienen de la rutina no se borran: un toque accidental
+       no deberia costarte una tarjeta. Lo que agregaste vos ese dia, si. */
+    html += '    <div class="ex-actions">';
+    html += '      <button class="icon-btn" data-action="renameEx" data-ex="'+i+'" aria-label="Reemplazar ejercicio">✎</button>';
+    if(e.custom){
+      html += '      <button class="icon-btn danger" data-action="removeEx" data-ex="'+i+'" aria-label="Quitar ejercicio agregado">✕</button>';
+    }
+    html += '    </div>';
     html += '  </div>';
 
     if(last){
@@ -778,6 +790,46 @@
       });
     });
 
+    /* Reemplazar = cambiar el nombre, solo para esta sesion. La plantilla no se
+       toca: el proximo lunes vuelve el ejercicio original. */
+    viewEl.querySelectorAll('[data-action="renameEx"]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var exIdx = parseInt(btn.getAttribute('data-ex'),10);
+        var card = viewEl.querySelector('.ex-card[data-ex="'+exIdx+'"]');
+        var nameEl = card && card.querySelector('.ex-name');
+        if(!nameEl) return;
+
+        var original = session.exercises[exIdx].name;
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'ex-rename';
+        input.value = original;
+        input.setAttribute('aria-label', 'Nombre del ejercicio');
+        nameEl.parentNode.replaceChild(input, nameEl);
+        input.focus();
+        input.select();
+
+        var settled = false;
+        function commit(){
+          if(settled) return;
+          settled = true;
+          var v = input.value.trim();
+          session.exercises[exIdx].name = v || original;   // vacio = dejarlo como estaba
+          saveSessions(); render();
+        }
+        function cancel(){
+          if(settled) return;
+          settled = true;
+          render();
+        }
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', function(e){
+          if(e.key === 'Enter'){ e.preventDefault(); commit(); }
+          else if(e.key === 'Escape'){ e.preventDefault(); cancel(); }
+        });
+      });
+    });
+
     viewEl.querySelectorAll('[data-action="removeEx"]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var exIdx = parseInt(btn.getAttribute('data-ex'),10);
@@ -816,11 +868,11 @@
         if(!name) return;
         var kind = document.getElementById('newExKind').value;
         if(kind === 'cardio'){
-          session.exercises.push({name:name, kind:'cardio', options:CARDIO_OPTIONS.slice(), minutes:null, done:false});
+          session.exercises.push({name:name, kind:'cardio', options:CARDIO_OPTIONS.slice(), minutes:null, done:false, custom:true});
         } else {
           session.exercises.push({
             name: name, kind: 'strength',
-            targetSets: DEFAULT_SETS, targetReps: DEFAULT_REPS, weight: '', done: false
+            targetSets: DEFAULT_SETS, targetReps: DEFAULT_REPS, weight: '', done: false, custom: true
           });
         }
         saveSessions(); render();
@@ -830,7 +882,9 @@
     viewEl.querySelectorAll('[data-action="copyFromDay"]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var day = btn.getAttribute('data-day');
-        var toAdd = cloneExercisesFromTemplate(day);
+        /* Copiados de otro dia: no son parte de la rutina de hoy, asi que se
+           pueden sacar si fue un error. */
+        var toAdd = cloneExercisesFromTemplate(day).map(function(e){ e.custom = true; return e; });
         session.exercises = session.exercises.concat(toAdd);
         saveSessions(); render();
       });
