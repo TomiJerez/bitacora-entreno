@@ -304,12 +304,6 @@
     var d = parseIso(dateStr);
     return d.toLocaleDateString('es-AR', {day:'numeric', month:'short'});
   }
-  function fmtDuration(ms){
-    var totalMin = Math.round(ms/60000);
-    var h = Math.floor(totalMin/60), m = totalMin%60;
-    if(h>0) return h+'h '+m+'min';
-    return m+' min';
-  }
 
   /* ---------- datos por defecto ---------- */
   /* Toda la rutina apunta a 4 series de 8-12; el cardio no usa series ni kg,
@@ -397,6 +391,7 @@
     Object.keys(all).forEach(function(d){
       var sess = all[d];
       if(sess && Array.isArray(sess.exercises)) sess.exercises = sess.exercises.map(migrateSessionExercise);
+      if(sess) delete sess.startedAt;   // ya no se mide la duracion del entreno
     });
     return all;
   }
@@ -490,8 +485,7 @@
     template: loadTemplate(),
     sessions: loadSessions(),
     ui: loadUi(),
-    historyOpenDate: null,
-    liveInterval: null
+    historyOpenDate: null
   };
 
   /* ---------- sesiones ---------- */
@@ -515,7 +509,7 @@
     var focus = (state.template[dayKey] && state.template[dayKey].focus) || (DAY_LABEL[dayKey] || 'Entreno');
     var session = {
       date: dateStr, dayKey: dayKey, label: focus,
-      startedAt: null, finishedAt: null,
+      finishedAt: null,
       exercises: dayKey ? cloneExercisesFromTemplate(dayKey) : []
     };
     state.sessions[dateStr] = session;
@@ -666,19 +660,12 @@
 
   function sessionEditorHtml(session, isToday){
     var summary = setsSummary(session);
-    var durationHtml = '';
-    if(session.startedAt && !session.finishedAt){
-      durationHtml = '<span class="pill" id="liveClock">'+fmtDuration(Date.now()-session.startedAt)+'</span>';
-    } else if(session.finishedAt){
-      durationHtml = '<span class="pill ok">'+fmtDuration(session.finishedAt-session.startedAt)+'</span>';
-    }
 
-    var startStopBtn = '';
-    if(!session.startedAt){
-      startStopBtn = '<button class="btn btn-primary small" data-action="startSession">▶ Iniciar sesión</button>';
-    } else if(!session.finishedAt){
-      startStopBtn = '<button class="btn btn-ghost small" data-action="finishSession">■ Finalizar</button>';
-    }
+    /* No se mide cuanto duro el entreno: solo interesa si el dia esta cerrado. */
+    var dayStatus = session.finishedAt
+      ? '<span class="pill ok">Día terminado</span>' +
+        '<button class="btn btn-ghost small" data-action="reopenDay">Reabrir</button>'
+      : '<button class="btn btn-primary small" data-action="finishDay">Terminar día</button>';
 
     var html = '';
     html += '<div class="card stack">';
@@ -687,7 +674,7 @@
              'value="'+escapeHtml(session.label)+'" data-action="renameSession" placeholder="Enfoque del día">';
     html += '    <span class="pill">'+summary.done+'/'+summary.total+' ejercicios</span>';
     html += '  </div>';
-    html += '  <div class="row">' + startStopBtn + durationHtml + '</div>';
+    html += '  <div class="row">' + dayStatus + '</div>';
     html += '</div>';
 
     if(session.exercises.length === 0){
@@ -746,7 +733,7 @@
       html += '    </div>';
     } else {
       var placeholder = last ? String(last.weight) : '—';
-      html += '    <div class="field"><label>Kg</label>' +
+      html += '    <div class="field"><label>Peso máximo</label>' +
               '<input inputmode="decimal" class="num-input" data-field="weight" data-ex="'+i+'" ' +
               'value="'+escapeHtml(e.weight || '')+'" placeholder="'+escapeHtml(placeholder)+'"></div>';
     }
@@ -807,17 +794,17 @@
       });
     }
 
-    var startBtn = viewEl.querySelector('[data-action="startSession"]');
-    if(startBtn){
-      startBtn.addEventListener('click', function(){
-        session.startedAt = Date.now();
+    var finishDayBtn = viewEl.querySelector('[data-action="finishDay"]');
+    if(finishDayBtn){
+      finishDayBtn.addEventListener('click', function(){
+        session.finishedAt = Date.now();
         saveSessions(); render();
       });
     }
-    var finishBtn = viewEl.querySelector('[data-action="finishSession"]');
-    if(finishBtn){
-      finishBtn.addEventListener('click', function(){
-        session.finishedAt = Date.now();
+    var reopenBtn = viewEl.querySelector('[data-action="reopenDay"]');
+    if(reopenBtn){
+      reopenBtn.addEventListener('click', function(){
+        session.finishedAt = null;
         saveSessions(); render();
       });
     }
@@ -850,16 +837,6 @@
     });
 
     wireInstallBanner();
-
-    if(session.startedAt && !session.finishedAt){
-      clearInterval(state.liveInterval);
-      state.liveInterval = setInterval(function(){
-        var el = document.getElementById('liveClock');
-        if(el) el.textContent = fmtDuration(Date.now()-session.startedAt);
-      }, 1000);
-    } else {
-      clearInterval(state.liveInterval);
-    }
   }
 
   /* ---------- RUTINA ---------- */
@@ -1067,7 +1044,7 @@
     dates.forEach(function(d){
       var s = state.sessions[d];
       var summary = setsSummary(s);
-      var dur = (s.startedAt && s.finishedAt) ? ' · '+fmtDuration(s.finishedAt-s.startedAt) : '';
+      var dur = s.finishedAt ? ' · terminado' : '';
       html += '<button class="history-item" data-date="'+d+'">' +
         '<span><span class="history-date">'+fmtDateShort(d)+' · '+escapeHtml(s.label)+'</span>' +
         '<div class="history-sub">'+summary.done+'/'+summary.total+' ejercicios'+dur+'</div></span>' +
@@ -1097,8 +1074,7 @@
   }
 
   document.addEventListener('visibilitychange', function(){
-    if(document.hidden){ clearInterval(state.liveInterval); }
-    else { render(); }
+    if(!document.hidden) render();
   });
 
   /* ---------- modo prueba ---------- */
@@ -1126,7 +1102,7 @@
       all[iso] = {
         date: iso, dayKey: wk,
         label: (state.template[wk] && state.template[wk].focus) || 'Entreno',
-        startedAt: start, finishedAt: start + (50 + (back % 4) * 5) * 60000,
+        finishedAt: start,
         exercises: exs
       };
       made++;

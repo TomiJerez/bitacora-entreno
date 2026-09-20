@@ -64,7 +64,7 @@ nada de esto existe: `TEST_MODE` queda en `false` y las claves son las normales.
 
 Cada ejercicio tiene un `kind`:
 
-- `strength`: apunta a `targetSets` × `targetReps` (4 × 8-12 por defecto) y se registra con **un solo peso** (`weight`) y un `done`. No se anota serie por serie.
+- `strength`: apunta a `targetSets` × `targetReps` (4 × 8-12 por defecto) y se registra con **un solo peso** (`weight`, el máximo levantado en el ejercicio) y un `done`. No se anota serie por serie.
 - `cardio`: no usa peso ni series. Ofrece un par de duraciones en `options` (10 y 15 min) y guarda la elegida en `minutes`, más el `done`.
 - `bitacora_ui_v1`: preferencias de UI (tab activa, si se cerró el banner de instalación).
 
@@ -85,7 +85,7 @@ El archivo que genera "Exportar" tiene esta forma:
 - **Hoy**: arma el día según la plantilla semanal. Cada ejercicio es una tarjeta con el peso y un tilde; el placeholder del peso muestra el último registrado para ese ejercicio. Permite sacar ejercicios del día, agregar uno suelto (fuerza o cardio), o copiar los ejercicios de otro día.
 - **Checklist por ejercicio**: se marca el ejercicio entero, no serie por serie. El contador de arriba lleva el progreso (`2/4 ejercicios`).
 - **Cardio**: las tarjetas de cardio no piden kg; se elige la duración en el momento entre las opciones disponibles (10 o 15 min). Volver a tocar la opción elegida la desmarca.
-- **Sesión con inicio/fin**: botón para registrar cuánto duró el entreno.
+- **Terminar día**: un botón cierra el día y lo marca como terminado (queda visible en el Historial). Se puede reabrir si se cerró por error. No se mide cuánto duró el entreno.
 - **Rutina**: edición de la plantilla semanal — nombre, tipo (fuerza/cardio), series y reps por ejercicio. Incluye botón "Restaurar plantilla por defecto" con doble confirmación.
 - **Historial**: todas las sesiones pasadas, cada una abre en el mismo editor que "Hoy" (permite corregir datos cargados).
 - **Copia de seguridad** (en la tab "Rutina"): exporta plantilla + sesiones a un `.json`, e importa desde
@@ -105,9 +105,12 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
 ## Notas de diseño / decisiones tomadas
 
 - Sin frameworks ni librerías externas (bundle mínimo, cero dependencias que puedan romperse).
-- El registro es deliberadamente grueso: un peso y un tilde por ejercicio, en vez de kg y reps por
-  serie. La versión anterior pedía cuatro filas por ejercicio y en la práctica era mucho tipeo en el
-  gimnasio. No hay timer de descanso por la misma razón.
+- El registro es deliberadamente grueso: el peso máximo y un tilde por ejercicio, en vez de kg y reps
+  por serie. La versión anterior pedía cuatro filas por ejercicio y en la práctica era mucho tipeo en
+  el gimnasio. No hay timer de descanso por la misma razón.
+- Tampoco se cronometra el entreno. Había un inicio/fin con reloj en vivo y duración guardada; se sacó
+  porque el dato no se usaba. Queda sólo `finishedAt` como marca de que el día se cerró — el valor es
+  un timestamp, pero se lee como booleano.
 - Hay migración automática del formato viejo (`sets: [{weight, reps, done}]`): al cargar, cada
   ejercicio se colapsa al último peso anotado y queda `done` si todas sus series lo estaban. Corre
   tanto sobre `localStorage` como al importar un archivo `version: 1`, y se persiste una sola vez.
@@ -128,4 +131,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v5`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v6`) y subir ese número invalida el cache viejo.
