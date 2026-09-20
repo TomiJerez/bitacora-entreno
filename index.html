@@ -683,7 +683,18 @@
     html += '</div>';
 
     if(session.exercises.length === 0){
-      html += '<div class="card empty">Todavía no hay ejercicios cargados para '+(isToday?'hoy':'este día')+'.</div>';
+      /* Una sesion vacia antes era un callejon sin salida: ensureSession solo
+         clona la plantilla al crearla, nunca despues. */
+      var tplDay = session.dayKey && state.template[session.dayKey];
+      html += '<div class="card stack" style="text-align:center;">';
+      html += '  <div class="empty" style="padding:16px 10px 4px;">Este día quedó sin ejercicios.</div>';
+      if(tplDay){
+        html += '  <button class="btn btn-primary small" data-action="restoreFromTemplate">' +
+                'Cargar los ejercicios del ' + (DAY_LABEL[session.dayKey]||'día').toLowerCase() + '</button>';
+      } else {
+        html += '  <div class="ex-target">Agregá uno abajo, o copiá los de otro día.</div>';
+      }
+      html += '</div>';
     }
 
     session.exercises.forEach(function(e, i){
@@ -792,6 +803,14 @@
 
     /* Reemplazar = cambiar el nombre, solo para esta sesion. La plantilla no se
        toca: el proximo lunes vuelve el ejercicio original. */
+    var restoreBtn = viewEl.querySelector('[data-action="restoreFromTemplate"]');
+    if(restoreBtn){
+      restoreBtn.addEventListener('click', function(){
+        session.exercises = cloneExercisesFromTemplate(session.dayKey);
+        saveSessions(); render();
+      });
+    }
+
     viewEl.querySelectorAll('[data-action="renameEx"]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var exIdx = parseInt(btn.getAttribute('data-ex'),10);
