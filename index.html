@@ -272,6 +272,7 @@
   var LS_SESSIONS = 'bitacora_sessions_v1' + SUF;
   var LS_UI = 'bitacora_ui_v1' + SUF;
   var LS_TESTDATE = 'bitacora_test_date';
+  var LS_TPLVER = 'bitacora_template_version' + SUF;
 
   var DAY_ORDER = ['mon','tue','wed','thu','fri'];
   var DAY_LABEL = {mon:'Lunes',tue:'Martes',wed:'Miércoles',thu:'Jueves',fri:'Viernes',sat:'Sábado',sun:'Domingo'};
@@ -339,7 +340,7 @@
         cardio('Cinta')
       ]},
       thu:{ focus:'Hombro / Tríceps', exercises:[
-        ex('Press militar'),
+        ex('Press hombro máquina'),
         ex('Vuelos'),
         ex('Tríceps con cinta'),
         cardio('Cinta')
@@ -385,6 +386,33 @@
     return out;
   }
 
+  /* Cambios a la rutina por defecto que tienen que llegar a plantillas ya
+     guardadas. Sin esto, tocar defaultTemplate() no cambia nada en un celu que
+     ya tiene su plantilla: loadTemplate la devuelve tal cual. Cada parche
+     corre una sola vez, segun la version guardada, asi que si despues renombras
+     el ejercicio a mano no te lo volvemos a pisar. */
+  var TEMPLATE_VERSION = 2;
+
+  var TEMPLATE_PATCHES = [
+    // 1 -> 2: el press militar del jueves pasa a maquina
+    function(t){
+      if(!t.thu || !Array.isArray(t.thu.exercises)) return;
+      t.thu.exercises.forEach(function(e){
+        if(e.name === 'Press militar') e.name = 'Press hombro máquina';
+      });
+    }
+  ];
+
+  function applyTemplatePatches(t){
+    var from = parseInt(safeGet(LS_TPLVER), 10) || 1;
+    for(var v = from; v < TEMPLATE_VERSION; v++){
+      var patch = TEMPLATE_PATCHES[v - 1];
+      if(patch){ try{ patch(t); }catch(e){} }
+    }
+    safeSet(LS_TPLVER, String(TEMPLATE_VERSION));
+    return t;
+  }
+
   function migrateTemplate(t){
     DAY_ORDER.forEach(function(k){
       if(t[k] && Array.isArray(t[k].exercises)) t[k].exercises = t[k].exercises.map(migrateTemplateExercise);
@@ -408,12 +436,13 @@
   function loadTemplate(){
     var raw = safeGet(LS_TEMPLATE);
     if(raw){ try{
-      var t = migrateTemplate(JSON.parse(raw));
+      var t = applyTemplatePatches(migrateTemplate(JSON.parse(raw)));
       safeSet(LS_TEMPLATE, JSON.stringify(t));   // persistir la migracion, no solo aplicarla en memoria
       return t;
     }catch(e){} }
     var t = defaultTemplate();
     safeSet(LS_TEMPLATE, JSON.stringify(t));
+    safeSet(LS_TPLVER, String(TEMPLATE_VERSION));   // ya nace al dia: no hay parches que aplicar
     return t;
   }
   function saveTemplate(){ safeSet(LS_TEMPLATE, JSON.stringify(state.template)); }
@@ -1048,7 +1077,9 @@
       resetBtn.addEventListener('click', function(){
         if(resetBtn.dataset.armed === '1'){
           state.template = defaultTemplate();
-          saveTemplate(); render();
+          saveTemplate();
+          safeSet(LS_TPLVER, String(TEMPLATE_VERSION));
+          render();
         } else {
           resetBtn.dataset.armed = '1';
           resetBtn.textContent = '¿Seguro? Tocá de nuevo para confirmar';
@@ -1217,7 +1248,7 @@
   }
 
   function wipeTestData(){
-    [LS_TEMPLATE, LS_SESSIONS, LS_UI, LS_TESTDATE].forEach(function(k){
+    [LS_TEMPLATE, LS_SESSIONS, LS_UI, LS_TESTDATE, LS_TPLVER].forEach(function(k){
       try{ localStorage.removeItem(k); }catch(e){}
     });
   }

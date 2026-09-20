@@ -66,6 +66,7 @@ Cada ejercicio tiene un `kind`:
 
 - `strength`: apunta a `targetSets` × `targetReps` (4 × 8-12 por defecto) y se registra con **un solo peso** (`weight`, el máximo levantado en el ejercicio) y un `done`. No se anota serie por serie.
 - `cardio`: no usa peso ni series. Ofrece un par de duraciones en `options` (10 y 15 min) y guarda la elegida en `minutes`, más el `done`.
+- `bitacora_template_version`: versión de la rutina por defecto que ya se aplicó a la plantilla guardada.
 - `bitacora_ui_v1`: preferencias de UI (tab activa, si se cerró el banner de instalación).
 
 El archivo que genera "Exportar" tiene esta forma:
@@ -107,12 +108,18 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
 - **Lunes** — Pecho / Tríceps: Pecho plano, Pecho aperturas, Tríceps con barra, Cinta
 - **Martes** — Espalda / Bíceps: Jalón al pecho, Remo, Bíceps martillo, Bíceps supino
 - **Miércoles** — Piernas: Cuádricep, Isquio, Ad/abductores o prensa, Cinta
-- **Jueves** — Hombro / Tríceps: Press militar, Vuelos, Tríceps con cinta, Cinta
+- **Jueves** — Hombro / Tríceps: Press hombro máquina, Vuelos, Tríceps con cinta, Cinta
 - **Viernes** — Pecho / Espalda / Hombro / Bíceps: Pecho inclinado, Jalón al pecho, Press militar, Bíceps supino
 
 ## Notas de diseño / decisiones tomadas
 
 - Sin frameworks ni librerías externas (bundle mínimo, cero dependencias que puedan romperse).
+- Cambiar `defaultTemplate()` no alcanza para que el cambio llegue a un teléfono que ya tiene su
+  plantilla: `loadTemplate()` devuelve la guardada tal cual. Para eso están los `TEMPLATE_PATCHES`,
+  una lista de funciones numeradas por versión que se aplican una sola vez sobre la plantilla
+  guardada, controladas por `bitacora_template_version`. Así un cambio a la rutina por defecto llega
+  sin pisar lo que el usuario haya personalizado, y si después revierte el cambio a mano no se le
+  vuelve a aplicar. Las sesiones ya registradas nunca se tocan: guardan lo que efectivamente se hizo.
 - Los ejercicios que vienen de la rutina **no se pueden borrar desde "Hoy"**: solo se reemplazan. Un
   toque accidental en el gimnasio no debería costar una tarjeta, y borrar no tiene mucho sentido —
   la sesión es el registro de lo que hiciste. Los que agregás vos ese día (a mano o copiados de otro
@@ -145,4 +152,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v9`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v10`) y subir ese número invalida el cache viejo.
