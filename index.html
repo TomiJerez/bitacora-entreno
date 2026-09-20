@@ -536,6 +536,40 @@
     );
   }
 
+  /* El banner se dibuja en las dos ramas de renderHoy, asi que su wiring vive
+     aparte: antes colgaba de wireSessionEditor y los fines de semana, que no
+     lo llaman, los botones quedaban muertos. */
+  function wireInstallBanner(){
+    var dismissBtn = viewEl.querySelector('[data-action="dismissInstall"]');
+    if(dismissBtn){
+      dismissBtn.addEventListener('click', function(){
+        state.ui.installDismissed = true; saveUi(); render();
+      });
+    }
+    var installBtn = viewEl.querySelector('[data-action="doInstall"]');
+    if(installBtn){
+      installBtn.addEventListener('click', function(){
+        if(!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.finally(function(){
+          deferredInstallPrompt = null; render();
+        });
+      });
+    }
+  }
+
+  /* Chips de "Fin de semana": solo existen en esa rama de renderHoy. */
+  function wireWeekendChips(){
+    viewEl.querySelectorAll('[data-action="startWeekend"]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var day = btn.getAttribute('data-day');
+        var todayIso = isoDate(new Date());
+        ensureSession(todayIso, day || null);
+        render();
+      });
+    });
+  }
+
   /* ---------- HOY / editor de sesión (reutilizado en historial) ---------- */
   function renderHoy(todayIso, wk){
     if(!state.template[wk] && !state.sessions[todayIso]){
@@ -551,6 +585,8 @@
             '<button data-action="startWeekend" data-day="">En blanco</button>' +
           '</div>' +
         '</div>';
+      wireInstallBanner();
+      wireWeekendChips();
       return;
     }
     var session = ensureSession(todayIso, wk);
@@ -736,31 +772,7 @@
       });
     });
 
-    viewEl.querySelectorAll('[data-action="startWeekend"]').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        var day = btn.getAttribute('data-day');
-        var todayIso = isoDate(new Date());
-        ensureSession(todayIso, day || null);
-        render();
-      });
-    });
-
-    var dismissBtn = viewEl.querySelector('[data-action="dismissInstall"]');
-    if(dismissBtn){
-      dismissBtn.addEventListener('click', function(){
-        state.ui.installDismissed = true; saveUi(); render();
-      });
-    }
-    var installBtn = viewEl.querySelector('[data-action="doInstall"]');
-    if(installBtn){
-      installBtn.addEventListener('click', function(){
-        if(!deferredInstallPrompt) return;
-        deferredInstallPrompt.prompt();
-        deferredInstallPrompt.userChoice.finally(function(){
-          deferredInstallPrompt = null; render();
-        });
-      });
-    }
+    wireInstallBanner();
 
     if(session.startedAt && !session.finishedAt){
       clearInterval(state.liveInterval);

@@ -1,5 +1,5 @@
 /* Service worker minimalista: cachea el shell de la app para uso offline. */
-var CACHE_NAME = 'bitacora-v2';
+var CACHE_NAME = 'bitacora-v3';
 
 /* Sin esto la app no arranca: si algo de acá falla, el SW no se instala. */
 var CORE = ['./', './index.html', './manifest.json', './fonts.css'];
