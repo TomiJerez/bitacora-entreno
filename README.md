@@ -36,8 +36,13 @@ Ojo: para que el service worker y el manifest se registren bien, tiene que servi
 
 ## Modelo de datos (localStorage)
 
-- `bitacora_template_v1`: plantilla semanal editable (lunes a viernes), cada día con su lista de ejercicios (nombre, series objetivo, reps objetivo, descanso en segundos).
+- `bitacora_template_v1`: plantilla semanal editable (lunes a viernes), cada día con su lista de ejercicios (nombre, tipo, y series y reps objetivo si son de fuerza).
 - `bitacora_sessions_v1`: sesiones registradas por fecha (`YYYY-MM-DD`). Cada sesión clona los ejercicios de la plantilla del día al crearse, pero es totalmente editable sin afectar la plantilla (agregar/quitar ejercicios, cambiar el enfoque del día, etc.).
+
+Cada ejercicio tiene un `kind`:
+
+- `strength`: apunta a `targetSets` × `targetReps` (4 × 8-12 por defecto) y se registra con **un solo peso** (`weight`) y un `done`. No se anota serie por serie.
+- `cardio`: no usa peso ni series. Ofrece un par de duraciones en `options` (10 y 15 min) y guarda la elegida en `minutes`, más el `done`.
 - `bitacora_ui_v1`: preferencias de UI (tab activa, si se cerró el banner de instalación).
 
 El archivo que genera "Exportar" tiene esta forma:
@@ -54,16 +59,19 @@ El archivo que genera "Exportar" tiene esta forma:
 
 ## Funcionalidad
 
-- **Hoy**: arma el día según la plantilla semanal, con placeholders del último peso/reps registrado por ejercicio. Permite sacar ejercicios del día, agregar uno suelto, o copiar los ejercicios de otro día de la plantilla.
-- **Timer de descanso**: al marcar una serie como hecha, dispara un countdown con el descanso configurado para ese ejercicio (vibración + beep al terminar).
+- **Hoy**: arma el día según la plantilla semanal. Cada ejercicio es una tarjeta con el peso y un tilde; el placeholder del peso muestra el último registrado para ese ejercicio. Permite sacar ejercicios del día, agregar uno suelto (fuerza o cardio), o copiar los ejercicios de otro día.
+- **Checklist por ejercicio**: se marca el ejercicio entero, no serie por serie. El contador de arriba lleva el progreso (`2/4 ejercicios`).
+- **Cardio**: las tarjetas de cardio no piden kg; se elige la duración en el momento entre las opciones disponibles (10 o 15 min). Volver a tocar la opción elegida la desmarca.
 - **Sesión con inicio/fin**: botón para registrar cuánto duró el entreno.
-- **Rutina**: edición completa de la plantilla semanal (series, reps, descanso, agregar/quitar ejercicios por día). Incluye botón "Restaurar plantilla por defecto" con doble confirmación.
+- **Rutina**: edición de la plantilla semanal — nombre, tipo (fuerza/cardio), series y reps por ejercicio. Incluye botón "Restaurar plantilla por defecto" con doble confirmación.
 - **Historial**: todas las sesiones pasadas, cada una abre en el mismo editor que "Hoy" (permite corregir datos cargados).
 - **Copia de seguridad** (en la tab "Rutina"): exporta plantilla + sesiones a un `.json`, e importa desde
   un archivo previo. Importar reemplaza todo lo que haya, así que pide doble confirmación y muestra
   cuántas sesiones trae el archivo. Valida el contenido antes de pisar nada.
 
 ## Rutina por defecto (editable desde la app)
+
+Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es cardio (10 o 15 min).
 
 - **Lunes** — Pecho / Tríceps: Pecho plano, Pecho aperturas, Tríceps con barra, Cinta
 - **Martes** — Espalda / Bíceps: Jalón al pecho, Remo, Bíceps martillo, Bíceps supino
@@ -74,6 +82,12 @@ El archivo que genera "Exportar" tiene esta forma:
 ## Notas de diseño / decisiones tomadas
 
 - Sin frameworks ni librerías externas (bundle mínimo, cero dependencias que puedan romperse).
+- El registro es deliberadamente grueso: un peso y un tilde por ejercicio, en vez de kg y reps por
+  serie. La versión anterior pedía cuatro filas por ejercicio y en la práctica era mucho tipeo en el
+  gimnasio. No hay timer de descanso por la misma razón.
+- Hay migración automática del formato viejo (`sets: [{weight, reps, done}]`): al cargar, cada
+  ejercicio se colapsa al último peso anotado y queda `done` si todas sus series lo estaban. Corre
+  tanto sobre `localStorage` como al importar un archivo `version: 1`, y se persiste una sola vez.
 - Sin backend: todo vive en `localStorage` del navegador que lo abre. Como esa es la única copia,
   hay export/import a JSON — conviene exportar cada tanto, porque borrar los datos del sitio o
   desinstalar la PWA se lleva el historial puesto.
@@ -91,4 +105,4 @@ El archivo que genera "Exportar" tiene esta forma:
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v3`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v4`) y subir ese número invalida el cache viejo.

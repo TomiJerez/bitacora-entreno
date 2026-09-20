@@ -151,23 +151,32 @@
   .ex-target{color:var(--text-muted); font-size:12.5px; margin-top:2px; font-family:var(--font-mono);}
   .ex-last{color:var(--text-muted); font-size:12.5px; margin-top:6px; background:var(--surface-2); padding:6px 10px; border-radius:8px; font-family:var(--font-mono);}
 
-  .set-rows{margin-top:10px; display:flex; flex-direction:column; gap:6px;}
-  .set-row{
-    display:grid; grid-template-columns:28px 1fr 1fr 40px; gap:8px; align-items:center;
-  }
-  .set-row-head{color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em;}
-  .set-num{font-family:var(--font-mono); font-weight:600; color:var(--text-muted); font-size:13px; text-align:center;}
   .num-input{
     width:100%; border:1px solid var(--border); background:var(--bg); color:var(--text);
-    border-radius:10px; padding:9px 8px; font-family:var(--font-mono); font-size:15px; font-variant-numeric:tabular-nums;
+    border-radius:10px; padding:11px 10px; font-family:var(--font-mono); font-size:17px; font-variant-numeric:tabular-nums;
     text-align:center;
   }
-  .set-row.done .num-input{border-color:var(--ok); background:var(--ok-bg);}
+
+  /* Fila principal del ejercicio: el peso (o la duracion) y el tilde. */
+  .ex-main{display:flex; align-items:flex-end; gap:10px; margin-top:10px;}
+  .ex-main .field{flex:1;}
+  .ex-card.done .num-input{border-color:var(--ok); background:var(--ok-bg);}
+  .ex-card.done .ex-name{color:var(--text-muted); text-decoration:line-through;}
+
   .check-btn{
-    width:36px; height:36px; border-radius:10px; border:1px solid var(--border); background:var(--surface-2);
-    color:var(--text-muted); font-size:16px; cursor:pointer;
+    width:52px; height:46px; flex:none; border-radius:12px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text-muted); font-size:20px; font-weight:700; cursor:pointer; opacity:.45;
   }
+  .check-btn.on{opacity:1;}
   .check-btn.on{background:var(--ok); border-color:var(--ok); color:#fff;}
+
+  /* Opciones de duracion del cardio. */
+  .cardio-opts{display:flex; gap:6px; flex:1;}
+  .cardio-opts button{
+    flex:1; padding:12px 8px; border-radius:12px; border:1px solid var(--border); background:var(--bg);
+    color:var(--text-muted); font-family:var(--font-mono); font-size:15px; font-weight:600; cursor:pointer;
+  }
+  .cardio-opts button.active{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
 
   .ghost-btn{
     margin-top:10px; background:none; border:1px dashed var(--border); color:var(--text-muted);
@@ -182,27 +191,9 @@
   }
   .grid-4{display:grid; grid-template-columns:1.7fr 0.8fr 0.9fr 0.8fr; gap:6px;}
   .grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
 
   .empty{color:var(--text-muted); font-size:14px; text-align:center; padding:30px 10px;}
-
-  .rest-timer{
-    position:fixed; left:0; right:0; bottom:0; z-index:20;
-    display:flex; justify-content:center;
-    padding:0 14px calc(84px + env(safe-area-inset-bottom,0px));
-    pointer-events:none;
-  }
-  .rest-timer-inner{
-    width:100%; max-width:520px; background:var(--text); color:var(--bg);
-    border-radius:16px; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px;
-    box-shadow:var(--shadow);
-    pointer-events:auto;
-  }
-  .rest-timer #restLabel{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; opacity:.75; display:block;}
-  .rest-timer #restClock{font-family:var(--font-mono); font-size:22px; font-weight:600; font-variant-numeric:tabular-nums;}
-  .rest-actions{display:flex; gap:6px;}
-  .rest-actions button{
-    background:rgba(128,128,128,.25); border:none; color:inherit; border-radius:9px; padding:7px 9px; font-size:12px; font-weight:700; cursor:pointer;
-  }
 
   .history-item{
     display:flex; justify-content:space-between; align-items:center; gap:10px;
@@ -242,19 +233,6 @@
     <button class="tab" data-tab="historial"><span class="dot"></span>Historial</button>
   </nav>
 
-  <div class="rest-timer" id="restTimer" hidden>
-    <div class="rest-timer-inner">
-      <div>
-        <span id="restLabel">Descanso</span>
-        <div id="restClock">01:30</div>
-      </div>
-      <div class="rest-actions">
-        <button id="restMinus" type="button">−15s</button>
-        <button id="restPlus" type="button">+15s</button>
-        <button id="restSkip" type="button">Saltar</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -299,48 +277,95 @@
     if(h>0) return h+'h '+m+'min';
     return m+' min';
   }
-  function fmtClock(sec){
-    sec = Math.max(0, Math.round(sec));
-    var m = Math.floor(sec/60), s = sec%60;
-    return pad2(m)+':'+pad2(s);
-  }
 
   /* ---------- datos por defecto ---------- */
-  function ex(name, sets, reps, rest){ return {id:uid(), name:name, targetSets:sets, targetReps:reps, restSec:rest}; }
+  /* Toda la rutina apunta a 4 series de 8-12; el cardio no usa series ni kg,
+     solo una duracion que se elige en el momento. */
+  var DEFAULT_SETS = 4, DEFAULT_REPS = '8-12', CARDIO_OPTIONS = [10, 15];
+
+  function ex(name){ return {id:uid(), name:name, kind:'strength', targetSets:DEFAULT_SETS, targetReps:DEFAULT_REPS}; }
+  function cardio(name){ return {id:uid(), name:name, kind:'cardio', options:CARDIO_OPTIONS.slice()}; }
 
   function defaultTemplate(){
     return {
       mon:{ focus:'Pecho / Tríceps', exercises:[
-        ex('Pecho plano', 4, '6-8', 90),
-        ex('Pecho aperturas', 3, '10-12', 60),
-        ex('Tríceps con barra', 3, '10-12', 60),
-        ex('Cinta', 1, '20-25 min', 0)
+        ex('Pecho plano'),
+        ex('Pecho aperturas'),
+        ex('Tríceps con barra'),
+        cardio('Cinta')
       ]},
       tue:{ focus:'Espalda / Bíceps', exercises:[
-        ex('Jalón al pecho', 4, '6-8', 90),
-        ex('Remo', 3, '8-10', 75),
-        ex('Bíceps martillo', 3, '10-12', 60),
-        ex('Bíceps supino', 3, '10-12', 60)
+        ex('Jalón al pecho'),
+        ex('Remo'),
+        ex('Bíceps martillo'),
+        ex('Bíceps supino')
       ]},
       wed:{ focus:'Piernas', exercises:[
-        ex('Cuádricep', 4, '8-10', 90),
-        ex('Isquio', 3, '10-12', 75),
-        ex('Ad/abductores o prensa', 3, '12-15', 60),
-        ex('Cinta', 1, '20-25 min', 0)
+        ex('Cuádricep'),
+        ex('Isquio'),
+        ex('Ad/abductores o prensa'),
+        cardio('Cinta')
       ]},
       thu:{ focus:'Hombro / Tríceps', exercises:[
-        ex('Press militar', 4, '6-8', 90),
-        ex('Vuelos', 3, '12-15', 60),
-        ex('Tríceps con cinta', 3, '12-15', 60),
-        ex('Cinta', 1, '20-25 min', 0)
+        ex('Press militar'),
+        ex('Vuelos'),
+        ex('Tríceps con cinta'),
+        cardio('Cinta')
       ]},
       fri:{ focus:'Pecho / Espalda / Hombro / Bíceps', exercises:[
-        ex('Pecho inclinado', 4, '8-10', 90),
-        ex('Jalón al pecho', 3, '8-10', 75),
-        ex('Press militar', 3, '8-10', 75),
-        ex('Bíceps supino', 3, '10-12', 60)
+        ex('Pecho inclinado'),
+        ex('Jalón al pecho'),
+        ex('Press militar'),
+        ex('Bíceps supino')
       ]}
     };
+  }
+
+  /* ---------- migracion de datos viejos ----------
+     El formato anterior guardaba un array `sets` por ejercicio, con kg y reps
+     por serie, y un `restSec` para el timer. Ahora es un peso por ejercicio y
+     un tilde. Esto convierte lo que ya este en localStorage en vez de perderlo. */
+  function migrateTemplateExercise(e){
+    if(e.kind) return e;
+    var isCardio = /cinta|caminata|bici|eliptic/i.test(e.name || '');
+    var out = {id: e.id || uid(), name: e.name, kind: isCardio ? 'cardio' : 'strength'};
+    if(isCardio){ out.options = CARDIO_OPTIONS.slice(); }
+    else { out.targetSets = DEFAULT_SETS; out.targetReps = DEFAULT_REPS; }
+    return out;
+  }
+
+  function migrateSessionExercise(e){
+    if(e.kind && !e.sets) return e;
+    var isCardio = e.kind === 'cardio' || /cinta|caminata|bici|eliptic/i.test(e.name || '');
+    var out = {name: e.name, kind: isCardio ? 'cardio' : 'strength'};
+    var sets = e.sets || [];
+    out.done = sets.length > 0 && sets.every(function(s){ return s.done; });
+    if(isCardio){
+      out.options = e.options || CARDIO_OPTIONS.slice();
+      out.minutes = e.minutes != null ? e.minutes : null;
+    } else {
+      out.targetSets = e.targetSets || DEFAULT_SETS;
+      out.targetReps = e.targetReps || DEFAULT_REPS;
+      // el peso del ejercicio es el ultimo que se haya anotado en alguna serie
+      var weights = sets.map(function(s){ return s.weight; }).filter(function(w){ return w !== '' && w != null; });
+      out.weight = e.weight != null ? e.weight : (weights.length ? weights[weights.length-1] : '');
+    }
+    return out;
+  }
+
+  function migrateTemplate(t){
+    DAY_ORDER.forEach(function(k){
+      if(t[k] && Array.isArray(t[k].exercises)) t[k].exercises = t[k].exercises.map(migrateTemplateExercise);
+    });
+    return t;
+  }
+
+  function migrateSessions(all){
+    Object.keys(all).forEach(function(d){
+      var sess = all[d];
+      if(sess && Array.isArray(sess.exercises)) sess.exercises = sess.exercises.map(migrateSessionExercise);
+    });
+    return all;
   }
 
   /* ---------- persistencia ---------- */
@@ -349,7 +374,11 @@
 
   function loadTemplate(){
     var raw = safeGet(LS_TEMPLATE);
-    if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+    if(raw){ try{
+      var t = migrateTemplate(JSON.parse(raw));
+      safeSet(LS_TEMPLATE, JSON.stringify(t));   // persistir la migracion, no solo aplicarla en memoria
+      return t;
+    }catch(e){} }
     var t = defaultTemplate();
     safeSet(LS_TEMPLATE, JSON.stringify(t));
     return t;
@@ -358,7 +387,11 @@
 
   function loadSessions(){
     var raw = safeGet(LS_SESSIONS);
-    if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+    if(raw){ try{
+      var all = migrateSessions(JSON.parse(raw));
+      safeSet(LS_SESSIONS, JSON.stringify(all));
+      return all;
+    }catch(e){} }
     return {};
   }
   function saveSessions(){ safeSet(LS_SESSIONS, JSON.stringify(state.sessions)); }
@@ -373,7 +406,7 @@
   /* ---------- export / import ----------
      Unica red de seguridad contra perder el historial: localStorage no sobrevive
      a un "borrar datos del sitio" ni a desinstalar la PWA. */
-  var EXPORT_VERSION = 1;
+  var EXPORT_VERSION = 2;   // v1 guardaba series por ejercicio; se migra al importar
 
   function exportData(){
     var payload = {
@@ -409,8 +442,10 @@
   }
 
   function applyBackup(data){
-    state.template = data.template;
-    state.sessions = data.sessions;
+    /* Un archivo v1 trae el formato viejo (array de series por ejercicio):
+       se migra igual que lo guardado en localStorage. */
+    state.template = migrateTemplate(data.template);
+    state.sessions = migrateSessions(data.sessions);
     saveTemplate();
     saveSessions();
     state.historyOpenDate = null;
@@ -423,8 +458,6 @@
     sessions: loadSessions(),
     ui: loadUi(),
     historyOpenDate: null,
-    restInterval: null,
-    restRemaining: 0,
     liveInterval: null
   };
 
@@ -433,9 +466,13 @@
     var day = state.template[dayKey];
     if(!day) return [];
     return day.exercises.map(function(e){
+      if(e.kind === 'cardio'){
+        return {name:e.name, kind:'cardio', options:(e.options||CARDIO_OPTIONS).slice(), minutes:null, done:false};
+      }
       return {
-        name: e.name, targetSets: e.targetSets, targetReps: e.targetReps, restSec: e.restSec,
-        sets: Array.from({length: Math.max(1,e.targetSets)}, function(){ return {weight:'', reps:'', done:false}; })
+        name: e.name, kind: 'strength',
+        targetSets: e.targetSets || DEFAULT_SETS, targetReps: e.targetReps || DEFAULT_REPS,
+        weight: '', done: false
       };
     });
   }
@@ -462,20 +499,20 @@
         if(sess.exercises[j].name === name){ found = sess.exercises[j]; break; }
       }
       if(found){
-        var loggedSets = found.sets.filter(function(s){ return s.weight !== '' || s.reps !== ''; });
-        if(loggedSets.length) return {date: dates[i], sets: loggedSets};
+        if(found.kind === 'cardio'){
+          if(found.minutes) return {date: dates[i], minutes: found.minutes};
+        } else if(found.weight !== '' && found.weight != null){
+          return {date: dates[i], weight: found.weight};
+        }
       }
     }
     return null;
   }
 
   function setsSummary(session){
-    var done = 0, total = 0;
-    session.exercises.forEach(function(e){
-      total += e.sets.length;
-      e.sets.forEach(function(s){ if(s.done) done++; });
-    });
-    return {done: done, total: total};
+    var done = 0;
+    session.exercises.forEach(function(e){ if(e.done) done++; });
+    return {done: done, total: session.exercises.length};
   }
 
   /* ---------- render raíz ---------- */
@@ -615,7 +652,7 @@
     html += '  <div class="row">';
     html += '    <input class="field-inline" style="font-family:var(--font-display);font-size:18px;font-weight:600;border:none;background:none;color:var(--text);width:60%;" ' +
              'value="'+escapeHtml(session.label)+'" data-action="renameSession" placeholder="Enfoque del día">';
-    html += '    <span class="pill">'+summary.done+'/'+summary.total+' series</span>';
+    html += '    <span class="pill">'+summary.done+'/'+summary.total+' ejercicios</span>';
     html += '  </div>';
     html += '  <div class="row">' + startStopBtn + durationHtml + '</div>';
     html += '</div>';
@@ -633,11 +670,12 @@
 
     html += '<div class="card stack">';
     html += '  <div class="field"><label>Agregar ejercicio</label>' +
-             '<div class="grid-4">' +
-             '  <input type="text" id="newExName" placeholder="Nombre">' +
-             '  <input type="number" id="newExSets" placeholder="Series" inputmode="numeric" value="3">' +
-             '  <input type="text" id="newExReps" placeholder="Reps" value="10-12">' +
-             '  <input type="number" id="newExRest" placeholder="Desc." inputmode="numeric" value="60">' +
+             '<div class="row" style="gap:6px;">' +
+             '  <input type="text" id="newExName" placeholder="Nombre" style="flex:1;">' +
+             '  <select id="newExKind" style="flex:none;width:110px;">' +
+             '    <option value="strength">Fuerza</option>' +
+             '    <option value="cardio">Cardio</option>' +
+             '  </select>' +
              '</div></div>';
     html += '  <button class="btn btn-ghost small" data-action="addCustomExercise">+ Agregar ejercicio</button>';
     html += '  <div class="field"><label>Copiar ejercicios de otro día</label>' +
@@ -650,68 +688,72 @@
   }
 
   function exerciseCardHtml(e, i, last){
-    var placeholderW = '—', placeholderR = '—';
-    if(last){
-      var lastSet = last.sets[last.sets.length-1];
-      placeholderW = lastSet.weight || '—';
-      placeholderR = lastSet.reps || '—';
-    }
+    var isCardio = e.kind === 'cardio';
     var html = '';
-    html += '<div class="ex-card" data-ex="'+i+'">';
+    html += '<div class="ex-card '+(e.done?'done':'')+'" data-ex="'+i+'">';
     html += '  <div class="ex-head">';
     html += '    <div>';
     html += '      <div class="ex-name">'+escapeHtml(e.name)+'</div>';
-    html += '      <div class="ex-target">'+e.targetSets+'×'+escapeHtml(e.targetReps)+' · descanso '+e.restSec+'s</div>';
+    html += '      <div class="ex-target">'+(isCardio ? 'cardio' : e.targetSets+'×'+escapeHtml(e.targetReps))+'</div>';
     html += '    </div>';
     html += '    <button class="icon-btn danger" data-action="removeEx" data-ex="'+i+'" aria-label="Quitar ejercicio">✕</button>';
     html += '  </div>';
+
     if(last){
-      html += '  <div class="ex-last">Última vez ('+fmtDateShort(last.date)+'): ' +
-              last.sets.map(function(s){ return (s.weight||'–')+'kg×'+(s.reps||'–'); }).join(', ') + '</div>';
+      var lastTxt = isCardio ? (last.minutes + ' min') : (last.weight + ' kg');
+      html += '  <div class="ex-last">Última vez ('+fmtDateShort(last.date)+'): '+escapeHtml(String(lastTxt))+'</div>';
     }
-    html += '  <div class="set-rows">';
-    html += '    <div class="set-row set-row-head"><span>#</span><span>Kg</span><span>Reps</span><span></span></div>';
-    e.sets.forEach(function(s, si){
-      html += '    <div class="set-row '+(s.done?'done':'')+'">';
-      html += '      <span class="set-num">'+(si+1)+'</span>';
-      html += '      <input inputmode="decimal" class="num-input" data-field="weight" data-ex="'+i+'" data-set="'+si+'" value="'+escapeHtml(s.weight)+'" placeholder="'+escapeHtml(placeholderW)+'">';
-      html += '      <input inputmode="numeric" class="num-input" data-field="reps" data-ex="'+i+'" data-set="'+si+'" value="'+escapeHtml(s.reps)+'" placeholder="'+escapeHtml(placeholderR)+'">';
-      html += '      <button class="check-btn '+(s.done?'on':'')+'" data-action="toggleDone" data-ex="'+i+'" data-set="'+si+'" aria-label="Marcar serie hecha">'+(s.done?'✓':'')+'</button>';
+
+    html += '  <div class="ex-main">';
+    if(isCardio){
+      html += '    <div class="cardio-opts">';
+      (e.options || CARDIO_OPTIONS).forEach(function(min){
+        html += '<button data-action="setMinutes" data-ex="'+i+'" data-min="'+min+'" class="'+(e.minutes === min ? 'active':'')+'">'+min+' min</button>';
+      });
       html += '    </div>';
-    });
+    } else {
+      var placeholder = last ? String(last.weight) : '—';
+      html += '    <div class="field"><label>Kg</label>' +
+              '<input inputmode="decimal" class="num-input" data-field="weight" data-ex="'+i+'" ' +
+              'value="'+escapeHtml(e.weight || '')+'" placeholder="'+escapeHtml(placeholder)+'"></div>';
+    }
+    html += '    <button class="check-btn '+(e.done?'on':'')+'" data-action="toggleExDone" data-ex="'+i+'" ' +
+            'aria-label="Marcar ejercicio hecho">✓</button>';
     html += '  </div>';
-    html += '  <button class="ghost-btn" data-action="addSet" data-ex="'+i+'">+ Serie</button>';
     html += '</div>';
     return html;
   }
 
   function wireSessionEditor(session, isToday){
-    viewEl.querySelectorAll('input[data-field]').forEach(function(inp){
+    /* El peso se guarda al vuelo, sin re-render: si redibujaramos aca el input
+       perderia el foco mientras se escribe. */
+    viewEl.querySelectorAll('input[data-field="weight"]').forEach(function(inp){
       inp.addEventListener('change', function(){
         var exIdx = parseInt(inp.getAttribute('data-ex'),10);
-        var setIdx = parseInt(inp.getAttribute('data-set'),10);
-        var field = inp.getAttribute('data-field');
-        session.exercises[exIdx].sets[setIdx][field] = inp.value.trim();
+        session.exercises[exIdx].weight = inp.value.trim();
         saveSessions();
       });
     });
 
-    viewEl.querySelectorAll('[data-action="toggleDone"]').forEach(function(btn){
+    viewEl.querySelectorAll('[data-action="toggleExDone"]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var exIdx = parseInt(btn.getAttribute('data-ex'),10);
-        var setIdx = parseInt(btn.getAttribute('data-set'),10);
-        var setObj = session.exercises[exIdx].sets[setIdx];
-        setObj.done = !setObj.done;
-        saveSessions();
-        if(setObj.done){ startRestTimer(session.exercises[exIdx].restSec, session.exercises[exIdx].name); }
-        render();
+        var e = session.exercises[exIdx];
+        /* Lo tipeado y todavia no confirmado se perderia en el render, asi que
+           se levanta del input antes de redibujar. */
+        var weightInput = viewEl.querySelector('input[data-field="weight"][data-ex="'+exIdx+'"]');
+        if(weightInput) e.weight = weightInput.value.trim();
+        e.done = !e.done;
+        saveSessions(); render();
       });
     });
 
-    viewEl.querySelectorAll('[data-action="addSet"]').forEach(function(btn){
+    viewEl.querySelectorAll('[data-action="setMinutes"]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var exIdx = parseInt(btn.getAttribute('data-ex'),10);
-        session.exercises[exIdx].sets.push({weight:'', reps:'', done:false});
+        var min = parseInt(btn.getAttribute('data-min'),10);
+        var e = session.exercises[exIdx];
+        e.minutes = (e.minutes === min) ? null : min;   // volver a tocar la opcion elegida la desmarca
         saveSessions(); render();
       });
     });
@@ -752,13 +794,15 @@
       addCustomBtn.addEventListener('click', function(){
         var name = document.getElementById('newExName').value.trim();
         if(!name) return;
-        var sets = parseInt(document.getElementById('newExSets').value,10) || 3;
-        var reps = document.getElementById('newExReps').value.trim() || '10-12';
-        var rest = parseInt(document.getElementById('newExRest').value,10) || 60;
-        session.exercises.push({
-          name: name, targetSets: sets, targetReps: reps, restSec: rest,
-          sets: Array.from({length: sets}, function(){ return {weight:'', reps:'', done:false}; })
-        });
+        var kind = document.getElementById('newExKind').value;
+        if(kind === 'cardio'){
+          session.exercises.push({name:name, kind:'cardio', options:CARDIO_OPTIONS.slice(), minutes:null, done:false});
+        } else {
+          session.exercises.push({
+            name: name, kind: 'strength',
+            targetSets: DEFAULT_SETS, targetReps: DEFAULT_REPS, weight: '', done: false
+          });
+        }
         saveSessions(); render();
       });
     }
@@ -812,11 +856,24 @@
         html += '      <input type="text" style="flex:1;" data-tpl-field="name" data-day="'+dayKey+'" data-ex="'+i+'" value="'+escapeHtml(e.name)+'" placeholder="Ejercicio">';
         html += '      <button class="icon-btn danger" data-tpl-remove data-day="'+dayKey+'" data-ex="'+i+'" aria-label="Quitar">✕</button>';
         html += '    </div>';
-        html += '    <div class="grid-3" style="margin-top:8px;">';
-        html += '      <div class="field"><label>Series</label><input type="number" data-tpl-field="targetSets" data-day="'+dayKey+'" data-ex="'+i+'" value="'+e.targetSets+'"></div>';
-        html += '      <div class="field"><label>Reps</label><input type="text" data-tpl-field="targetReps" data-day="'+dayKey+'" data-ex="'+i+'" value="'+escapeHtml(e.targetReps)+'"></div>';
-        html += '      <div class="field"><label>Desc. (s)</label><input type="number" data-tpl-field="restSec" data-day="'+dayKey+'" data-ex="'+i+'" value="'+e.restSec+'"></div>';
-        html += '    </div>';
+        var kindSelect = '<div class="field"><label>Tipo</label>' +
+              '<select data-tpl-kind data-day="'+dayKey+'" data-ex="'+i+'">' +
+              '  <option value="strength"'+(e.kind !== 'cardio' ? ' selected' : '')+'>Fuerza</option>' +
+              '  <option value="cardio"'+(e.kind === 'cardio' ? ' selected' : '')+'>Cardio</option>' +
+              '</select></div>';
+        if(e.kind === 'cardio'){
+          html += '    <div class="grid-2" style="margin-top:8px;">';
+          html += kindSelect;
+          html += '      <div class="field"><label>Duración</label>' +
+                  '<div class="ex-target" style="padding-top:11px;">'+(e.options||CARDIO_OPTIONS).join(' o ')+' min</div></div>';
+          html += '    </div>';
+        } else {
+          html += '    <div class="grid-3" style="margin-top:8px;">';
+          html += kindSelect;
+          html += '      <div class="field"><label>Series</label><input type="number" data-tpl-field="targetSets" data-day="'+dayKey+'" data-ex="'+i+'" value="'+e.targetSets+'"></div>';
+          html += '      <div class="field"><label>Reps</label><input type="text" data-tpl-field="targetReps" data-day="'+dayKey+'" data-ex="'+i+'" value="'+escapeHtml(e.targetReps)+'"></div>';
+          html += '    </div>';
+        }
         html += '  </div>';
       });
       html += '  <button class="ghost-btn" data-tpl-add data-day="'+dayKey+'">+ Ejercicio</button>';
@@ -836,7 +893,7 @@
         var idx = parseInt(inp.getAttribute('data-ex'),10);
         var field = inp.getAttribute('data-tpl-field');
         var val = inp.value;
-        if(field === 'targetSets' || field === 'restSec') val = parseInt(val,10) || 0;
+        if(field === 'targetSets') val = parseInt(val,10) || 0;
         state.template[day].exercises[idx][field] = val;
         saveTemplate();
       });
@@ -849,10 +906,25 @@
         saveTemplate(); render();
       });
     });
+    viewEl.querySelectorAll('[data-tpl-kind]').forEach(function(sel){
+      sel.addEventListener('change', function(){
+        var day = sel.getAttribute('data-day');
+        var idx = parseInt(sel.getAttribute('data-ex'),10);
+        var e = state.template[day].exercises[idx];
+        /* Cambiar de tipo cambia que campos tiene el ejercicio, no solo una etiqueta. */
+        if(sel.value === 'cardio'){
+          state.template[day].exercises[idx] = {id:e.id||uid(), name:e.name, kind:'cardio', options:CARDIO_OPTIONS.slice()};
+        } else {
+          state.template[day].exercises[idx] = {id:e.id||uid(), name:e.name, kind:'strength', targetSets:DEFAULT_SETS, targetReps:DEFAULT_REPS};
+        }
+        saveTemplate(); render();
+      });
+    });
+
     viewEl.querySelectorAll('[data-tpl-add]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var day = btn.getAttribute('data-day');
-        state.template[day].exercises.push(ex('Nuevo ejercicio', 3, '10-12', 60));
+        state.template[day].exercises.push(ex('Nuevo ejercicio'));
         saveTemplate(); render();
       });
     });
@@ -965,7 +1037,7 @@
       var dur = (s.startedAt && s.finishedAt) ? ' · '+fmtDuration(s.finishedAt-s.startedAt) : '';
       html += '<button class="history-item" data-date="'+d+'">' +
         '<span><span class="history-date">'+fmtDateShort(d)+' · '+escapeHtml(s.label)+'</span>' +
-        '<div class="history-sub">'+summary.done+'/'+summary.total+' series'+dur+'</div></span>' +
+        '<div class="history-sub">'+summary.done+'/'+summary.total+' ejercicios'+dur+'</div></span>' +
         '<span class="pill">'+(DAY_LABEL[s.dayKey]||'')+'</span>' +
       '</button>';
     });
@@ -977,56 +1049,6 @@
       });
     });
   }
-
-  /* ---------- temporizador de descanso ---------- */
-  var restTimerEl = document.getElementById('restTimer');
-  var restClockEl = document.getElementById('restClock');
-  var restLabelEl = document.getElementById('restLabel');
-  var audioCtx = null;
-
-  function beep(){
-    try{
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      var osc = audioCtx.createOscillator();
-      var gain = audioCtx.createGain();
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.15, audioCtx.currentTime+0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.3);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime+0.32);
-    }catch(e){}
-    try{ navigator.vibrate && navigator.vibrate([120,60,120]); }catch(e){}
-  }
-
-  function startRestTimer(seconds, label){
-    seconds = seconds || 60;
-    state.restRemaining = seconds;
-    restLabelEl.textContent = 'Descanso · ' + label;
-    restClockEl.textContent = fmtClock(state.restRemaining);
-    restTimerEl.hidden = false;
-    clearInterval(state.restInterval);
-    state.restInterval = setInterval(function(){
-      state.restRemaining -= 1;
-      if(state.restRemaining <= 0){
-        clearInterval(state.restInterval);
-        restTimerEl.hidden = true;
-        beep();
-        return;
-      }
-      restClockEl.textContent = fmtClock(state.restRemaining);
-    }, 1000);
-  }
-
-  document.getElementById('restPlus').addEventListener('click', function(){
-    state.restRemaining += 15; restClockEl.textContent = fmtClock(state.restRemaining);
-  });
-  document.getElementById('restMinus').addEventListener('click', function(){
-    state.restRemaining = Math.max(0, state.restRemaining-15); restClockEl.textContent = fmtClock(state.restRemaining);
-  });
-  document.getElementById('restSkip').addEventListener('click', function(){
-    clearInterval(state.restInterval); restTimerEl.hidden = true;
-  });
 
   /* ---------- navegación ---------- */
   document.querySelectorAll('.tab').forEach(function(btn){
