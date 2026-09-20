@@ -195,6 +195,24 @@
 
   .empty{color:var(--text-muted); font-size:14px; text-align:center; padding:30px 10px;}
 
+  /* Barra del modo prueba. Deliberadamente chillona: no tiene que pasar
+     desapercibida ni confundirse con la app real. */
+  .test-bar{
+    background:var(--gold-bg); color:var(--text); border-bottom:1px solid var(--border);
+    padding:10px 16px; display:flex; flex-direction:column; gap:8px; font-size:12.5px;
+  }
+  .test-bar .test-title{font-weight:800; text-transform:uppercase; letter-spacing:.06em; font-size:11px; color:var(--gold);}
+  .test-bar .test-row{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  .test-bar input[type="date"]{
+    flex:1; min-width:140px; border:1px solid var(--border); background:var(--bg); color:var(--text);
+    border-radius:9px; padding:7px 8px; font-family:var(--font-mono); font-size:13px;
+  }
+  .test-bar button{
+    border:1px solid var(--border); background:var(--surface); color:var(--text);
+    border-radius:9px; padding:7px 10px; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .test-bar button.danger{color:var(--danger); border-color:currentColor;}
+
   .history-item{
     display:flex; justify-content:space-between; align-items:center; gap:10px;
     padding:12px 0; border-top:1px solid var(--border); cursor:pointer; background:none; border-left:none; border-right:none; border-bottom:none; width:100%; text-align:left;
@@ -240,9 +258,15 @@
   'use strict';
 
   /* ---------- constantes ---------- */
-  var LS_TEMPLATE = 'bitacora_template_v1';
-  var LS_SESSIONS = 'bitacora_sessions_v1';
-  var LS_UI = 'bitacora_ui_v1';
+  /* Modo prueba: se activa con ?test en la URL. Usa claves de localStorage
+     propias, asi que nada de lo que se haga aca toca el historial real. */
+  var TEST_MODE = /(^|[?&#])test(=|&|$)/.test(location.search + location.hash);
+  var SUF = TEST_MODE ? '_test' : '';
+
+  var LS_TEMPLATE = 'bitacora_template_v1' + SUF;
+  var LS_SESSIONS = 'bitacora_sessions_v1' + SUF;
+  var LS_UI = 'bitacora_ui_v1' + SUF;
+  var LS_TESTDATE = 'bitacora_test_date';
 
   var DAY_ORDER = ['mon','tue','wed','thu','fri'];
   var DAY_LABEL = {mon:'Lunes',tue:'Martes',wed:'Miércoles',thu:'Jueves',fri:'Viernes',sat:'Sábado',sun:'Domingo'};
@@ -258,6 +282,15 @@
   function pad2(n){ return String(n).padStart(2,'0'); }
   function isoDate(d){ d = d || new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
   function weekdayKeyOf(d){ d = d || new Date(); return WEEKDAY_MAP[d.getDay()]; }
+
+  /* En modo prueba "hoy" puede ser cualquier dia, para poder recorrer la semana. */
+  function today(){
+    if(TEST_MODE){
+      var d = safeGet(LS_TESTDATE);
+      if(d) return parseIso(d);
+    }
+    return new Date();
+  }
   function parseIso(dateStr){
     var p = dateStr.split('-'); return new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10));
   }
@@ -531,7 +564,7 @@
       btn.classList.toggle('active', btn.getAttribute('data-tab') === state.ui.tab);
     });
 
-    var now = new Date();
+    var now = today();
     var todayIso = isoDate(now);
     dateLabelEl.textContent = fmtDateLong(todayIso);
 
@@ -600,7 +633,7 @@
     viewEl.querySelectorAll('[data-action="startWeekend"]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var day = btn.getAttribute('data-day');
-        var todayIso = isoDate(new Date());
+        var todayIso = isoDate(today());
         ensureSession(todayIso, day || null);
         render();
       });
@@ -1067,6 +1100,111 @@
     if(document.hidden){ clearInterval(state.liveInterval); }
     else { render(); }
   });
+
+  /* ---------- modo prueba ---------- */
+  function seedTestData(weeks){
+    var all = {};
+    var d = today();
+    var made = 0;
+    for(var back = 1; back <= weeks*7 && made < weeks*5; back++){
+      var day = new Date(d.getFullYear(), d.getMonth(), d.getDate() - back);
+      var wk = weekdayKeyOf(day);
+      if(DAY_ORDER.indexOf(wk) === -1) continue;   // solo lunes a viernes
+      var iso = isoDate(day);
+      var exs = cloneExercisesFromTemplate(wk).map(function(e, i){
+        if(e.kind === 'cardio'){
+          e.minutes = (back % 2 === 0) ? 10 : 15;
+        } else {
+          // pesos plausibles, subiendo un poco hacia el presente
+          var base = [60, 22.5, 35, 40, 50][i % 5];
+          e.weight = String(base - Math.floor(back/7) * 2.5);
+        }
+        e.done = true;
+        return e;
+      });
+      var start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 18, 30).getTime();
+      all[iso] = {
+        date: iso, dayKey: wk,
+        label: (state.template[wk] && state.template[wk].focus) || 'Entreno',
+        startedAt: start, finishedAt: start + (50 + (back % 4) * 5) * 60000,
+        exercises: exs
+      };
+      made++;
+    }
+    Object.keys(all).forEach(function(k){ state.sessions[k] = all[k]; });
+    saveSessions();
+    return made;
+  }
+
+  function wipeTestData(){
+    [LS_TEMPLATE, LS_SESSIONS, LS_UI, LS_TESTDATE].forEach(function(k){
+      try{ localStorage.removeItem(k); }catch(e){}
+    });
+  }
+
+  function mountTestBar(){
+    var bar = document.createElement('div');
+    bar.className = 'test-bar';
+    var current = safeGet(LS_TESTDATE) || isoDate(new Date());
+    bar.innerHTML =
+      '<div class="test-title">Modo prueba · datos aparte, no toca tu historial real</div>' +
+      '<div class="test-row">' +
+        '<input type="date" id="testDate" value="'+current+'">' +
+        '<button id="testPrev" type="button">◀ día</button>' +
+        '<button id="testNext" type="button">día ▶</button>' +
+      '</div>' +
+      '<div class="test-row">' +
+        '<button id="testSeed" type="button">Sembrar 2 semanas</button>' +
+        '<button id="testWipe" type="button" class="danger">Borrar datos de prueba</button>' +
+        '<button id="testExit" type="button">Salir</button>' +
+      '</div>';
+    var topbar = document.querySelector('.topbar');
+    topbar.parentNode.insertBefore(bar, topbar.nextSibling);
+
+    function setDate(iso){ safeSet(LS_TESTDATE, iso); document.getElementById('testDate').value = iso; render(); }
+    function shift(days){
+      var d = today();
+      setDate(isoDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() + days)));
+    }
+
+    document.getElementById('testDate').addEventListener('change', function(){
+      if(this.value) setDate(this.value);
+    });
+    document.getElementById('testPrev').addEventListener('click', function(){ shift(-1); });
+    document.getElementById('testNext').addEventListener('click', function(){ shift(1); });
+
+    document.getElementById('testSeed').addEventListener('click', function(){
+      var n = seedTestData(2);
+      this.textContent = n + ' sesiones creadas ✓';
+      var btn = this;
+      setTimeout(function(){ btn.textContent = 'Sembrar 2 semanas'; }, 2500);
+      render();
+    });
+
+    /* Borrar es destructivo aunque sean datos de prueba: doble confirmacion. */
+    var wipeBtn = document.getElementById('testWipe');
+    wipeBtn.addEventListener('click', function(){
+      if(wipeBtn.dataset.armed === '1'){
+        wipeTestData();
+        /* Salir del modo prueba, no recargar dentro de el: al arrancar, la app
+           recrea la plantilla por defecto y volveria a dejar claves _test. */
+        location.href = location.pathname;
+      } else {
+        wipeBtn.dataset.armed = '1';
+        wipeBtn.textContent = '¿Seguro? Tocá de nuevo';
+        setTimeout(function(){
+          wipeBtn.dataset.armed = '0';
+          wipeBtn.textContent = 'Borrar datos de prueba';
+        }, 4000);
+      }
+    });
+
+    document.getElementById('testExit').addEventListener('click', function(){
+      location.href = location.pathname;
+    });
+  }
+
+  if(TEST_MODE) mountTestBar();
 
   /* ---------- arranque ---------- */
   render();

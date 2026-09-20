@@ -34,6 +34,29 @@ Ojo: para que el service worker y el manifest se registren bien, tiene que servi
 2. Abrir la URL en Chrome en Android.
 3. Menú ⋮ → "Agregar a pantalla de inicio" (o el prompt nativo de instalación, si el navegador lo ofrece).
 
+## Modo prueba
+
+Agregar `?test` a la URL abre la app en modo prueba:
+
+```
+https://tomijerez.github.io/bitacora-entreno/?test
+```
+
+Sirve para simular el día a día sin ensuciar el historial real. Lo que hace:
+
+- **Usa claves de `localStorage` propias** (mismos nombres con sufijo `_test`). Los datos reales no
+  se leen ni se escriben mientras estés en modo prueba, así que no hay riesgo de mezclar nada.
+- **Permite simular cualquier fecha**: hay un selector de día y botones `◀ día` / `día ▶`, así se
+  puede recorrer la semana y ver cómo arma cada día la rutina. La fecha elegida se recuerda.
+- **Siembra datos de ejemplo**: "Sembrar 2 semanas" crea 10 sesiones pasadas de lunes a viernes, con
+  pesos y duraciones, para poder ver el Historial y las referencias de "Última vez".
+- **Borra todo de un toque**: "Borrar datos de prueba" (con doble confirmación) elimina las claves
+  `_test` y sale del modo prueba. Sale en vez de recargar a propósito: recargando dentro del modo,
+  la app recrearía la plantilla por defecto y volvería a dejar claves de prueba.
+
+La barra es deliberadamente llamativa para que no se confunda con la app real. Sin `?test` en la URL
+nada de esto existe: `TEST_MODE` queda en `false` y las claves son las normales.
+
 ## Modelo de datos (localStorage)
 
 - `bitacora_template_v1`: plantilla semanal editable (lunes a viernes), cada día con su lista de ejercicios (nombre, tipo, y series y reps objetivo si son de fuerza).
@@ -105,4 +128,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v4`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v5`) y subir ese número invalida el cache viejo.
