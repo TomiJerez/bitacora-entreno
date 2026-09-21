@@ -158,6 +158,25 @@
   }
 
   /* Fila principal del ejercicio: el peso (o la duracion) y el tilde. */
+  .done-card{text-align:center; padding:26px 16px;}
+  .done-mark{
+    width:56px; height:56px; margin:0 auto 12px; border-radius:50%;
+    background:var(--ok); color:#fff; font-size:30px; line-height:56px; font-weight:700;
+  }
+  .done-card h2{font-size:22px;}
+  .done-card .ex-target{margin-top:4px;}
+  .done-count{
+    margin-top:10px; display:inline-block; background:var(--ok-bg); color:var(--ok);
+    border-radius:999px; padding:5px 12px; font-family:var(--font-mono); font-size:13px; font-weight:600;
+  }
+  .done-row{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:11px 0; border-top:1px solid var(--border); font-size:14.5px;
+  }
+  .done-row:first-child{border-top:none;}
+  .done-row.skipped{color:var(--text-muted);}
+  .done-val{font-family:var(--font-mono); font-weight:600; flex:none;}
+
   .ex-actions{display:flex; gap:6px; flex:none;}
   .ex-rename{
     width:100%; font-weight:700; font-size:15.5px; border:1px solid var(--accent);
@@ -688,11 +707,56 @@
       return;
     }
     var session = ensureSession(todayIso, wk);
+
+    /* Con el dia terminado, el editor completo invitaba a seguir cargando como
+       si nada. Se muestra el resumen cerrado, y para corregir hay que reabrir. */
+    if(session.finishedAt){
+      viewEl.innerHTML = installBannerHtml() + dayDoneHtml(session);
+      wireInstallBanner();
+      var reopen = viewEl.querySelector('[data-action="reopenDay"]');
+      if(reopen){
+        reopen.addEventListener('click', function(){
+          session.finishedAt = null;
+          saveSessions(); render();
+        });
+      }
+      return;
+    }
+
     /* Si hoy no toca entrenar, la sesion salio de elegir un dia a mano: hay que
        poder volver a esa eleccion, o queda sin salida. */
     var offDay = !state.template[wk];
     viewEl.innerHTML = installBannerHtml() + sessionEditorHtml(session, true, offDay);
     wireSessionEditor(session, true);
+  }
+
+  function dayDoneHtml(session){
+    var summary = setsSummary(session);
+    var html = '';
+    html += '<div class="card done-card">';
+    html += '  <div class="done-mark">✓</div>';
+    html += '  <h2>Entrenamiento hecho</h2>';
+    html += '  <div class="ex-target">' + escapeHtml(session.label) + '</div>';
+    html += '  <div class="done-count">' + summary.done + ' de ' + summary.total + ' ejercicios</div>';
+    html += '</div>';
+
+    html += '<div class="card">';
+    session.exercises.forEach(function(e){
+      var val = e.kind === 'cardio'
+        ? (e.minutes ? e.minutes + ' min' : '—')
+        : (e.weight !== '' && e.weight != null ? e.weight + ' kg' : '—');
+      html += '<div class="done-row' + (e.done ? '' : ' skipped') + '">' +
+                '<span class="done-name">' + (e.done ? '✓ ' : '· ') + escapeHtml(e.name) + '</span>' +
+                '<span class="done-val">' + escapeHtml(String(val)) + '</span>' +
+              '</div>';
+    });
+    html += '</div>';
+
+    html += '<div class="card stack" style="text-align:center;">';
+    html += '  <div class="ex-target">¿Te faltó cargar algo?</div>';
+    html += '  <button class="btn btn-ghost small" data-action="reopenDay">Corregir el día</button>';
+    html += '</div>';
+    return html;
   }
 
   function sessionEditorHtml(session, isToday, offDay){

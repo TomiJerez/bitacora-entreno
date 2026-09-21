@@ -94,6 +94,11 @@ El archivo que genera "Exportar" tiene esta forma:
 - **Reemplazar (✎)**: cambia el nombre del ejercicio **solo en esa sesión** — sirve para cuando la máquina está ocupada o la cambiaron. La plantilla no se toca, así que la semana siguiente vuelve el original. Enter confirma, Escape cancela, y un nombre vacío deja el anterior.
 - **Checklist por ejercicio**: se marca el ejercicio entero, no serie por serie. El contador de arriba lleva el progreso (`2/4 ejercicios`).
 - **Cardio**: las tarjetas de cardio no piden kg; se elige la duración en el momento entre las opciones disponibles (10 o 15 min). Volver a tocar la opción elegida la desmarca.
+- **Entrenamiento hecho**: al cerrar el día, "Hoy" deja de mostrar el editor y pasa a una pantalla de
+  resumen — el tilde grande, el enfoque, cuántos ejercicios se hicieron y la lista con el peso o los
+  minutos de cada uno. Los que quedaron sin hacer aparecen atenuados. Para cambiar algo hay que tocar
+  "Corregir el día", que reabre el editor. Antes el día cerrado seguía completamente editable, lo que
+  invitaba a seguir cargando como si no se hubiera terminado.
 - **Terminar día**: un botón cierra el día y lo marca como terminado (queda visible en el Historial). Se puede reabrir si se cerró por error. No se mide cuánto duró el entreno.
 - **Rutina**: edición de la plantilla semanal — nombre, tipo (fuerza/cardio), series y reps por ejercicio. Incluye botón "Restaurar plantilla por defecto" con doble confirmación.
 - **Historial**: todas las sesiones pasadas, cada una abre en el mismo editor que "Hoy" (permite corregir datos cargados).
@@ -152,4 +157,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v10`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v11`) y subir ese número invalida el cache viejo.
