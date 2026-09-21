@@ -34,6 +34,20 @@ Ojo: para que el service worker y el manifest se registren bien, tiene que servi
 2. Abrir la URL en Chrome en Android.
 3. Menú ⋮ → "Agregar a pantalla de inicio" (o el prompt nativo de instalación, si el navegador lo ofrece).
 
+## Diagnóstico
+
+`?diag` abre un volcado de todo lo que hay en `localStorage`: qué claves existen, cuántas sesiones,
+con qué fecha, si el día está cerrado y qué peso o minutos tiene cada ejercicio. Incluye un botón
+para copiar todo.
+
+```
+https://tomijerez.github.io/bitacora-entreno/?diag
+```
+
+Es **solo lectura**, y corre **antes** de inicializar el estado a propósito: `loadTemplate()` y
+`loadSessions()` escriben (persisten la migración), así que arrancar la app normalmente para
+inspeccionar un problema podría tapar la evidencia. Con `?diag` la app ni siquiera arranca.
+
 ## Modo prueba
 
 Agregar `?test` a la URL abre la app en modo prueba:
@@ -169,4 +183,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v12`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v13`) y subir ese número invalida el cache viejo.

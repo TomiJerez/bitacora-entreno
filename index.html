@@ -555,6 +555,79 @@
   }
 
   /* ---------- estado ---------- */
+  /* ---------- diagnostico (?diag) ----------
+     Solo lee. Va ANTES de inicializar el estado porque loadTemplate/loadSessions
+     escriben (persisten la migracion), y eso taparia la evidencia de un problema. */
+  if(/(^|[?&#])diag(=|&|$)/.test(location.search + location.hash)){
+    (function(){
+      var lineas = [];
+      var total = 0;
+      try{
+        var claves = Object.keys(localStorage).sort();
+        lineas.push('claves en total: ' + claves.length);
+        claves.forEach(function(k){
+          var v = localStorage.getItem(k) || '';
+          total += v.length;
+          var resumen = '';
+          if(/sessions/.test(k)){
+            try{
+              var o = JSON.parse(v);
+              var fechas = Object.keys(o).sort();
+              resumen = fechas.length + ' sesiones: ' + (fechas.join(', ') || '(ninguna)');
+              fechas.forEach(function(f){
+                var ses = o[f] || {};
+                var exs = (ses.exercises || []).map(function(e){
+                  var d = e.kind === 'cardio' ? (e.minutes != null ? e.minutes + 'min' : '-')
+                                              : (e.weight !== '' && e.weight != null ? e.weight + 'kg' : '-');
+                  return e.name + '=' + d + (e.done ? '(ok)' : '');
+                });
+                resumen += '\n      ' + f + (ses.finishedAt ? ' [cerrado]' : ' [abierto]') + ': ' + (exs.join(', ') || 'sin ejercicios');
+              });
+            }catch(err){ resumen = 'NO PARSEA: ' + err.message; }
+          } else if(/template_v/.test(k)){
+            try{
+              var t = JSON.parse(v);
+              resumen = ['mon','tue','wed','thu','fri'].map(function(d){
+                return d + '=' + ((t[d] && t[d].exercises) ? t[d].exercises.length : '?');
+              }).join(' ');
+              if(t.thu && t.thu.exercises && t.thu.exercises[0]) resumen += ' | jue[0]=' + t.thu.exercises[0].name;
+            }catch(err){ resumen = 'NO PARSEA: ' + err.message; }
+          } else {
+            resumen = v.slice(0, 120);
+          }
+          lineas.push('\n' + k + '  (' + v.length + ' chars)\n  ' + resumen);
+        });
+        lineas.push('\ntotal guardado: ' + total + ' chars');
+      }catch(err){
+        lineas.push('ERROR leyendo localStorage: ' + err.message);
+      }
+      lineas.push('\nURL: ' + location.href);
+      lineas.push('userAgent: ' + navigator.userAgent);
+
+      var texto = lineas.join('\n');
+      document.body.innerHTML =
+        '<div style="padding:16px;font-family:monospace;font-size:12px;line-height:1.5;">' +
+        '<h2 style="font-family:sans-serif;">Diagnóstico (solo lectura)</h2>' +
+        '<button id="copiar" style="padding:10px 14px;font-size:14px;font-weight:700;margin-bottom:12px;">Copiar todo</button>' +
+        '<pre id="dump" style="white-space:pre-wrap;word-break:break-word;">' + escapeHtml(texto) + '</pre>' +
+        '</div>';
+      document.getElementById('copiar').addEventListener('click', function(){
+        var btn = this;
+        function ok(){ btn.textContent = 'Copiado ✓'; }
+        try{
+          navigator.clipboard.writeText(texto).then(ok, seleccionar);
+        }catch(e){ seleccionar(); }
+        function seleccionar(){
+          var r = document.createRange();
+          r.selectNodeContents(document.getElementById('dump'));
+          var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+          btn.textContent = 'Seleccionado: copiá a mano';
+        }
+      });
+    })();
+    return;   // no se arranca la app: no se escribe nada
+  }
+
   var state = {
     template: loadTemplate(),
     sessions: loadSessions(),
