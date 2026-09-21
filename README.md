@@ -94,6 +94,12 @@ El archivo que genera "Exportar" tiene esta forma:
 - **Reemplazar (✎)**: cambia el nombre del ejercicio **solo en esa sesión** — sirve para cuando la máquina está ocupada o la cambiaron. La plantilla no se toca, así que la semana siguiente vuelve el original. Enter confirma, Escape cancela, y un nombre vacío deja el anterior.
 - **Checklist por ejercicio**: se marca el ejercicio entero, no serie por serie. El contador de arriba lleva el progreso (`2/4 ejercicios`).
 - **Cardio**: las tarjetas de cardio no piden kg; se elige la duración en el momento entre las opciones disponibles (10 o 15 min). Volver a tocar la opción elegida la desmarca.
+- **Un día solo queda registrado si tiene algo**: abrir la app en un día de rutina arma la sesión para
+  poder mostrarla, pero no se guarda hasta que haya una señal real — un peso, un tilde, una duración
+  de cardio, un ejercicio agregado, uno reemplazado, o el día cerrado. Antes, mirar la app tres días
+  seguidos dejaba tres sesiones `0/4` en el historial, que inflaban la adherencia y ensuciaban
+  cualquier análisis de evolución. `recordedSessions()` es el filtro, y es lo que se guarda, se
+  exporta y se lista.
 - **Entrenamiento hecho**: al cerrar el día, "Hoy" deja de mostrar el editor y pasa a una pantalla de
   resumen — el tilde grande, el enfoque, cuántos ejercicios se hicieron y la lista con el peso o los
   minutos de cada uno. Los que quedaron sin hacer aparecen atenuados. Para cambiar algo hay que tocar
@@ -125,6 +131,12 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   guardada, controladas por `bitacora_template_version`. Así un cambio a la rutina por defecto llega
   sin pisar lo que el usuario haya personalizado, y si después revierte el cambio a mano no se le
   vuelve a aplicar. Las sesiones ya registradas nunca se tocan: guardan lo que efectivamente se hizo.
+- El peso se guarda en `input`, no en `change`: `change` recién dispara al perder el foco, así que
+  escribir el peso y bloquear la pantalla perdía el dato. Con el registro condicionado al contenido,
+  además se habría perdido el día entero.
+- Elegir un día en la pantalla de fin de semana crea la sesión en memoria pero todavía no la guarda.
+  Por eso esa pantalla se decide por `state.sessions[hoy]` y no por `sessionHasContent`: si no,
+  elegir un día rebotaría al selector. Cerrar la app sin cargar nada devuelve a la elección.
 - Los ejercicios que vienen de la rutina **no se pueden borrar desde "Hoy"**: solo se reemplazan. Un
   toque accidental en el gimnasio no debería costar una tarjeta, y borrar no tiene mucho sentido —
   la sesión es el registro de lo que hiciste. Los que agregás vos ese día (a mano o copiados de otro
@@ -157,4 +169,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v11`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v12`) y subir ese número invalida el cache viejo.

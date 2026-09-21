@@ -475,7 +475,28 @@
     }catch(e){} }
     return {};
   }
-  function saveSessions(){ safeSet(LS_SESSIONS, JSON.stringify(state.sessions)); }
+  /* Abrir la app en un dia de rutina crea la sesion para poder mostrarla, pero
+     si no se toca nada no tiene que quedar registrada: sin esto, mirar la app
+     tres dias seguidos dejaba tres dias "0/4" en el historial, y eso ensucia
+     cualquier analisis de adherencia o evolucion. */
+  function sessionHasContent(s){
+    if(!s) return false;
+    if(s.finishedAt) return true;
+    return (s.exercises || []).some(function(e){
+      return e.done || (e.weight !== '' && e.weight != null) || e.minutes || e.custom || e.renamed;
+    });
+  }
+
+  /* Las sesiones que realmente cuentan: lo que se guarda, exporta y lista. */
+  function recordedSessions(){
+    var out = {};
+    Object.keys(state.sessions).forEach(function(d){
+      if(sessionHasContent(state.sessions[d])) out[d] = state.sessions[d];
+    });
+    return out;
+  }
+
+  function saveSessions(){ safeSet(LS_SESSIONS, JSON.stringify(recordedSessions())); }
 
   function loadUi(){
     var raw = safeGet(LS_UI);
@@ -495,7 +516,7 @@
       version: EXPORT_VERSION,
       exportedAt: new Date().toISOString(),
       template: state.template,
-      sessions: state.sessions
+      sessions: recordedSessions()
     };
     var blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
     var url = URL.createObjectURL(blob);
@@ -626,7 +647,7 @@
       renderRutina();
     } else {
       dayTitleEl.textContent = 'Historial';
-      daySubEl.textContent = Object.keys(state.sessions).length + ' sesiones registradas';
+      daySubEl.textContent = Object.keys(recordedSessions()).length + ' sesiones registradas';
       renderHistorial();
     }
   }
@@ -689,6 +710,9 @@
 
   /* ---------- HOY / editor de sesión (reutilizado en historial) ---------- */
   function renderHoy(todayIso, wk){
+    /* Basta con que la sesion exista en memoria: elegir un dia la crea aunque
+       todavia no tenga nada cargado. Si se cierra la app sin tocar nada no se
+       guarda, y al volver aparece otra vez esta eleccion. */
     if(!state.template[wk] && !state.sessions[todayIso]){
       viewEl.innerHTML =
         installBannerHtml() +
@@ -868,9 +892,11 @@
 
   function wireSessionEditor(session, isToday){
     /* El peso se guarda al vuelo, sin re-render: si redibujaramos aca el input
-       perderia el foco mientras se escribe. */
+       perderia el foco mientras se escribe.
+       Va en 'input' y no en 'change' porque change recien dispara al perder el
+       foco: escribir el peso y bloquear la pantalla perdia el dato. */
     viewEl.querySelectorAll('input[data-field="weight"]').forEach(function(inp){
-      inp.addEventListener('change', function(){
+      inp.addEventListener('input', function(){
         var exIdx = parseInt(inp.getAttribute('data-ex'),10);
         session.exercises[exIdx].weight = inp.value.trim();
         saveSessions();
@@ -957,7 +983,12 @@
           if(settled) return;
           settled = true;
           var v = input.value.trim();
-          session.exercises[exIdx].name = v || original;   // vacio = dejarlo como estaba
+          if(v && v !== original){
+            session.exercises[exIdx].name = v;
+            /* Reemplazar es una decision del usuario: sin esta marca el dia se
+               considera vacio y el cambio se perderia al recargar. */
+            session.exercises[exIdx].renamed = true;
+          }
           saveSessions(); render();
         }
         function cancel(){
@@ -1038,7 +1069,7 @@
 
   /* ---------- RUTINA ---------- */
   function renderRutina(){
-    var nSessions = Object.keys(state.sessions).length;
+    var nSessions = Object.keys(recordedSessions()).length;
     var html = '<div class="card stack">' +
       '<p class="ex-target">Esta plantilla se usa para armar automáticamente el día de "Hoy". Cambiarla no modifica sesiones ya registradas.</p>' +
       '<button class="btn btn-ghost small" id="resetTplBtn" data-action="resetTemplate">Restaurar plantilla por defecto</button>' +
@@ -1234,7 +1265,7 @@
       return;
     }
 
-    var dates = Object.keys(state.sessions).sort().reverse();
+    var dates = Object.keys(recordedSessions()).sort().reverse();
     if(dates.length === 0){
       viewEl.innerHTML = '<div class="card empty">Todavía no registraste ninguna sesión.</div>';
       return;
