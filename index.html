@@ -91,8 +91,16 @@
   .topbar h1{font-size:26px; margin-top:2px;}
   /* Version visible para saber si el celu ya tiene la ultima. Tocarla busca
      actualizacion y recarga. */
+  .top-actions{
+    /* a la altura del titulo: arriba chocaba con la fecha larga */
+    position:absolute; right:16px; top:calc(36px + env(safe-area-inset-top,0px));
+    display:flex; gap:6px; align-items:center;
+  }
+  .install-pill{
+    font-size:12.5px; font-weight:700; padding:6px 12px; border-radius:999px; border:none;
+    background:var(--accent); color:var(--accent-contrast); cursor:pointer; touch-action:manipulation;
+  }
   .version-pill{
-    position:absolute; right:16px; top:calc(10px + env(safe-area-inset-top,0px));
     font-family:var(--font-mono); font-size:11.5px; font-weight:600; letter-spacing:.04em;
     padding:6px 10px; border-radius:999px; border:1px solid var(--border);
     background:var(--surface-2); color:var(--text-muted); cursor:pointer; touch-action:manipulation;
@@ -334,7 +342,10 @@
 <div id="app">
   <header class="topbar">
     <div class="eyebrow" id="dateLabel">—</div>
-    <button type="button" class="version-pill" id="versionPill" aria-label="Versión de la app. Tocar para buscar actualización">v—</button>
+    <div class="top-actions">
+      <button type="button" class="install-pill" id="installPill" hidden>⤓ Instalar</button>
+      <button type="button" class="version-pill" id="versionPill" aria-label="Versión de la app. Tocar para buscar actualización">v—</button>
+    </div>
     <h1 id="dayTitle">Bitácora</h1>
     <div class="sub" id="daySub"></div>
   </header>
@@ -895,14 +906,51 @@
   window.addEventListener('beforeinstallprompt', function(e){
     e.preventDefault();
     deferredInstallPrompt = e;
-    render();
+    syncInstallPill();
+    /* Solo redibujar si se ve el banner: un render cerraria el teclado. */
+    if(state.ui.tab === 'hoy' && !state.ui.installDismissed && !isEditing()) render();
   });
 
+  function isEditing(){
+    var a = document.activeElement;
+    return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
+  }
+
+  /* Boton fijo "Instalar" arriba: siempre a mano mientras la app corra en el
+     navegador, aunque se haya cerrado el banner. Instalada, desaparece. */
+  var installPill = document.getElementById('installPill');
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  function isInstalled(){
+    try{ return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
+    catch(e){ return false; }
+  }
+  function syncInstallPill(){ installPill.hidden = isInstalled(); }
+
+  installPill.addEventListener('click', function(){
+    if(deferredInstallPrompt){
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.finally(function(){
+        deferredInstallPrompt = null; syncInstallPill(); render();
+      });
+      return;
+    }
+    /* Sin el aviso nativo del navegador, mostrar como hacerlo a mano. */
+    state.ui.installDismissed = false; saveUi();
+    setTab('hoy');
+    viewEl.scrollTop = 0;
+  });
+  window.addEventListener('appinstalled', function(){
+    deferredInstallPrompt = null; syncInstallPill();
+  });
+  syncInstallPill();
+
   function installBannerHtml(){
-    if(state.ui.installDismissed) return '';
+    if(state.ui.installDismissed || isInstalled()) return '';
     var text = deferredInstallPrompt
       ? 'Instalá la app para usarla como una app normal, offline y sin la barra del navegador.'
-      : 'Para usarla como app: menú ⋮ de Chrome → "Agregar a pantalla de inicio".';
+      : (isIOS
+        ? 'Para instalarla: botón Compartir de Safari → "Agregar a inicio".'
+        : 'Para instalarla: menú ⋮ de Chrome → "Agregar a pantalla de inicio" (o "Instalar app").');
     return (
       '<div class="install-banner">' +
         '<p>' + text + '</p>' +
@@ -1612,7 +1660,7 @@
   /* ---------- PWA: service worker (no rompe nada si falla) ----------
      El manifest y los theme-color van declarados en el <head>, no inyectados aca. */
   /* APP_VERSION tiene que coincidir con CACHE_NAME en sw.js (bitacora-vNN). */
-  var APP_VERSION = '16';
+  var APP_VERSION = '17';
   var versionPill = document.getElementById('versionPill');
   versionPill.textContent = 'v' + APP_VERSION;
   var swReg = null;

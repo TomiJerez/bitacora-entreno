@@ -186,4 +186,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v16`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v17`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.
