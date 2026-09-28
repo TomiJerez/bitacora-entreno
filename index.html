@@ -131,7 +131,7 @@
   .btn:disabled{opacity:.5;}
 
   .icon-btn{
-    width:32px; height:32px; border-radius:9px; border:1px solid var(--border);
+    width:40px; height:40px; border-radius:9px; border:1px solid var(--border);
     background:var(--surface-2); color:var(--text-muted); font-size:15px; line-height:1; cursor:pointer;
     display:flex; align-items:center; justify-content:center; flex:none;
   }
@@ -212,7 +212,7 @@
   .field label{font-size:11.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:.04em;}
   input[type="text"], input[type="number"], input[type="search"], select{
     border:1px solid var(--border); background:var(--bg); color:var(--text);
-    border-radius:10px; padding:8px 9px; font-size:13.5px; width:100%;
+    border-radius:10px; padding:10px; font-size:16px; width:100%;   /* 16px: menos que eso y iOS hace zoom al tocar */
   }
   .grid-4{display:grid; grid-template-columns:1.7fr 0.8fr 0.9fr 0.8fr; gap:6px;}
   .grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
@@ -259,6 +259,67 @@
     color:var(--text-muted); font-size:12.5px; font-weight:700; cursor:pointer;
   }
   .day-tabs button.active{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
+
+  /* ---------- carga rapida de peso ---------- */
+  .weight-row{display:grid; grid-template-columns:46px 1fr 46px; gap:6px;}
+  .step-btn{
+    height:46px; border-radius:12px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text); font-size:22px; font-weight:700; line-height:1; cursor:pointer;
+    touch-action:manipulation;
+  }
+  .step-btn:active{transform:scale(.92);}
+  .ex-last.use-last{
+    display:flex; justify-content:space-between; align-items:center; gap:8px; width:100%;
+    border:1px dashed var(--border); text-align:left; cursor:pointer; touch-action:manipulation;
+  }
+  .ex-last .use-tag{font-weight:600; color:var(--accent); flex:none;}
+
+  /* ---------- progreso del dia ---------- */
+  .progress{height:6px; border-radius:999px; background:var(--surface-2); overflow:hidden;}
+  .progress > span{
+    display:block; height:100%; width:0; border-radius:inherit; background:var(--accent);
+    transition:width .45s cubic-bezier(.2,.8,.2,1), background-color .3s;
+  }
+  .progress.full > span{background:var(--ok);}
+
+  /* ---------- movimiento ---------- */
+  .ex-card{transition:opacity .25s;}
+  .ex-card .ex-name{transition:color .25s;}
+  .check-btn, .cardio-opts button{transition:background-color .2s, border-color .2s, color .2s, opacity .2s, transform .1s; touch-action:manipulation;}
+  .check-btn:active, .cardio-opts button:active, .btn:active{transform:scale(.95);}
+  .check-btn.pop{animation:pop .38s cubic-bezier(.3,1.6,.5,1);}
+  .pill.bump{animation:bump .35s ease-out;}
+  .num-input.flash{animation:flash .45s ease-out;}
+
+  #view.enter > *{animation:rise .32s cubic-bezier(.2,.8,.2,1) both;}
+  #view.enter > *:nth-child(2){animation-delay:.04s;}
+  #view.enter > *:nth-child(3){animation-delay:.08s;}
+  #view.enter > *:nth-child(4){animation-delay:.12s;}
+  #view.enter > *:nth-child(5){animation-delay:.16s;}
+  #view.enter > *:nth-child(n+6){animation-delay:.2s;}
+
+  .celebrate .done-mark{animation:stamp .55s cubic-bezier(.3,1.5,.5,1) both; position:relative;}
+  .celebrate .done-mark::after{
+    content:''; position:absolute; inset:0; border-radius:50%; border:3px solid var(--ok);
+    animation:ring .9s .15s ease-out both;
+  }
+  .celebrate .done-row{animation:rise .3s cubic-bezier(.2,.8,.2,1) both;}
+  .celebrate .done-row:nth-child(2){animation-delay:.25s;}
+  .celebrate .done-row:nth-child(3){animation-delay:.3s;}
+  .celebrate .done-row:nth-child(4){animation-delay:.35s;}
+  .celebrate .done-row:nth-child(n+5){animation-delay:.4s;}
+  .celebrate .done-row:first-child{animation-delay:.2s;}
+
+  @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.18);}100%{transform:scale(1);}}
+  @keyframes bump{0%{transform:scale(1);}40%{transform:scale(1.12);}100%{transform:scale(1);}}
+  @keyframes flash{0%{background:var(--gold-bg); border-color:var(--gold);}100%{}}
+  @keyframes rise{from{opacity:0; transform:translateY(8px);}to{opacity:1; transform:none;}}
+  @keyframes stamp{0%{opacity:0; transform:scale(.4) rotate(-12deg);}100%{opacity:1; transform:none;}}
+  @keyframes ring{0%{opacity:.7; transform:scale(1);}100%{opacity:0; transform:scale(1.9);}}
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{animation:none !important; transition:none !important;}
+  }
 </style>
 
 <div id="app">
@@ -766,7 +827,58 @@
       daySubEl.textContent = Object.keys(recordedSessions()).length + ' sesiones registradas';
       renderHistorial();
     }
+
+    /* La entrada animada solo cuando cambia la pantalla, no en cada redibujo:
+       si no, cargar un dato haria "rebotar" todo. */
+    var viewKey = state.ui.tab + '|' + (state.historyOpenDate || '') + '|' + todayIso;
+    viewEl.classList.remove('celebrate');
+    if(state.justFinished){ viewEl.classList.add('celebrate'); state.justFinished = false; }
+    if(viewKey !== lastViewKey){
+      lastViewKey = viewKey;
+      viewEl.classList.remove('enter');
+      void viewEl.offsetWidth;   // reinicia la animacion
+      viewEl.classList.add('enter');
+      viewEl.scrollTop = 0;
+    }
   }
+  var lastViewKey = null;
+
+  /* Un toque corto en Android al marcar algo: confirma sin mirar la pantalla. */
+  function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
+
+  function progressHtml(summary){
+    var pct = summary.total ? Math.round(summary.done / summary.total * 100) : 0;
+    return '<div class="progress' + (pct === 100 ? ' full' : '') + '" data-role="progress">' +
+             '<span style="width:' + pct + '%"></span></div>';
+  }
+
+  /* Actualiza contador y barra sin redibujar la pantalla: un render completo
+     cierra el teclado, mueve el scroll y corta las animaciones. */
+  function refreshProgress(session){
+    var summary = setsSummary(session);
+    var pill = viewEl.querySelector('[data-role="count"]');
+    if(pill){
+      pill.textContent = summary.done + '/' + summary.total + ' ejercicios';
+      pill.classList.remove('bump'); void pill.offsetWidth; pill.classList.add('bump');
+    }
+    var bar = viewEl.querySelector('[data-role="progress"]');
+    if(bar){
+      var pct = summary.total ? Math.round(summary.done / summary.total * 100) : 0;
+      bar.firstChild.style.width = pct + '%';
+      bar.classList.toggle('full', pct === 100);
+    }
+  }
+
+  /* Acepta "62,5" o "62.5" y devuelve con el mismo separador que se venia usando. */
+  function parseWeight(v){
+    var n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+    return isNaN(n) ? null : n;
+  }
+  function formatWeight(n, like){
+    var s = String(Math.round(n * 100) / 100);
+    return /,/.test(String(like || '')) ? s.replace('.', ',') : s;
+  }
+  var WEIGHT_STEP = 2.5;
 
   /* ---------- banner de instalación ---------- */
   var deferredInstallPrompt = null;
@@ -922,8 +1034,9 @@
     html += '  <div class="row">';
     html += '    <input class="field-inline" style="font-family:var(--font-display);font-size:18px;font-weight:600;border:none;background:none;color:var(--text);width:60%;" ' +
              'value="'+escapeHtml(session.label)+'" data-action="renameSession" placeholder="Enfoque del día">';
-    html += '    <span class="pill">'+summary.done+'/'+summary.total+' ejercicios</span>';
+    html += '    <span class="pill" data-role="count">'+summary.done+'/'+summary.total+' ejercicios</span>';
     html += '  </div>';
+    html += '  ' + progressHtml(summary);
     html += '  <div class="row">' + dayStatus + '</div>';
     if(offDay){
       html += '  <div class="row"><button class="btn btn-ghost small" data-action="changeDay">← Elegir otro día</button></div>';
@@ -991,8 +1104,14 @@
     html += '  </div>';
 
     if(last){
-      var lastTxt = isCardio ? (last.minutes + ' min') : (last.weight + ' kg');
-      html += '  <div class="ex-last">Última vez ('+fmtDateShort(last.date)+'): '+escapeHtml(String(lastTxt))+'</div>';
+      var lastLabel = 'Última vez ('+fmtDateShort(last.date)+'): ';
+      if(isCardio){
+        html += '  <div class="ex-last">'+lastLabel+escapeHtml(String(last.minutes))+' min</div>';
+      } else {
+        /* Casi siempre se repite el peso anterior: un toque lo copia, sin teclado. */
+        html += '  <button type="button" class="ex-last use-last" data-action="useLast" data-ex="'+i+'" data-w="'+escapeHtml(String(last.weight))+'">' +
+                  '<span>Última: '+escapeHtml(String(last.weight))+' kg · '+fmtDateShort(last.date)+'</span><span class="use-tag">Repetir</span></button>';
+      }
     }
 
     html += '  <div class="ex-main">';
@@ -1004,9 +1123,13 @@
       html += '    </div>';
     } else {
       var placeholder = last ? String(last.weight) : '—';
-      html += '    <div class="field"><label>Peso máximo</label>' +
-              '<input inputmode="decimal" class="num-input" data-field="weight" data-ex="'+i+'" ' +
-              'value="'+escapeHtml(e.weight || '')+'" placeholder="'+escapeHtml(placeholder)+'"></div>';
+      html += '    <div class="field"><label for="w-'+i+'">Peso máximo</label>' +
+              '<div class="weight-row">' +
+              '<button type="button" class="step-btn" data-action="stepWeight" data-ex="'+i+'" data-delta="-1" aria-label="Restar '+WEIGHT_STEP+' kg">−</button>' +
+              '<input id="w-'+i+'" inputmode="decimal" enterkeyhint="done" autocomplete="off" class="num-input" data-field="weight" data-ex="'+i+'" ' +
+              'value="'+escapeHtml(e.weight || '')+'" placeholder="'+escapeHtml(placeholder)+'">' +
+              '<button type="button" class="step-btn" data-action="stepWeight" data-ex="'+i+'" data-delta="1" aria-label="Sumar '+WEIGHT_STEP+' kg">+</button>' +
+              '</div></div>';
     }
     html += '    <button class="check-btn '+(e.done?'on':'')+'" data-action="toggleExDone" data-ex="'+i+'" ' +
             'aria-label="Marcar ejercicio hecho">✓</button>';
@@ -1026,18 +1149,64 @@
         session.exercises[exIdx].weight = inp.value.trim();
         saveSessions();
       });
+      // "Listo" en el teclado lo cierra
+      inp.addEventListener('keydown', function(ev){
+        if(ev.key === 'Enter'){ ev.preventDefault(); inp.blur(); }
+      });
+    });
+
+    function setWeight(exIdx, value){
+      var inp = viewEl.querySelector('input[data-field="weight"][data-ex="'+exIdx+'"]');
+      session.exercises[exIdx].weight = value;
+      saveSessions();
+      if(inp){
+        inp.value = value;
+        inp.classList.remove('flash'); void inp.offsetWidth; inp.classList.add('flash');
+      }
+      buzz(8);
+    }
+
+    viewEl.querySelectorAll('[data-action="useLast"]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        setWeight(parseInt(btn.getAttribute('data-ex'),10), btn.getAttribute('data-w'));
+      });
+    });
+
+    /* −/+ sin abrir el teclado. Si el campo esta vacio arranca del peso de la
+       ultima vez, que es lo que muestra el placeholder. */
+    viewEl.querySelectorAll('[data-action="stepWeight"]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var exIdx = parseInt(btn.getAttribute('data-ex'),10);
+        var inp = viewEl.querySelector('input[data-field="weight"][data-ex="'+exIdx+'"]');
+        var current = inp ? inp.value.trim() : session.exercises[exIdx].weight;
+        var base = parseWeight(current);
+        var like = current;
+        if(base === null){
+          base = parseWeight(inp && inp.placeholder);
+          like = inp && inp.placeholder;
+          if(base === null) base = 0;
+        }
+        var next = Math.max(0, base + parseInt(btn.getAttribute('data-delta'),10) * WEIGHT_STEP);
+        setWeight(exIdx, formatWeight(next, like));
+      });
     });
 
     viewEl.querySelectorAll('[data-action="toggleExDone"]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var exIdx = parseInt(btn.getAttribute('data-ex'),10);
         var e = session.exercises[exIdx];
-        /* Lo tipeado y todavia no confirmado se perderia en el render, asi que
-           se levanta del input antes de redibujar. */
+        /* Lo tipeado y todavia no confirmado se levanta del input por las dudas. */
         var weightInput = viewEl.querySelector('input[data-field="weight"][data-ex="'+exIdx+'"]');
         if(weightInput) e.weight = weightInput.value.trim();
         e.done = !e.done;
-        saveSessions(); render();
+        saveSessions();
+        /* Sin render: se tocan solo la tarjeta y el progreso. */
+        var card = viewEl.querySelector('.ex-card[data-ex="'+exIdx+'"]');
+        if(card) card.classList.toggle('done', e.done);
+        btn.classList.toggle('on', e.done);
+        btn.classList.remove('pop');
+        if(e.done){ void btn.offsetWidth; btn.classList.add('pop'); buzz(20); }
+        refreshProgress(session);
       });
     });
 
@@ -1047,7 +1216,11 @@
         var min = parseInt(btn.getAttribute('data-min'),10);
         var e = session.exercises[exIdx];
         e.minutes = (e.minutes === min) ? null : min;   // volver a tocar la opcion elegida la desmarca
-        saveSessions(); render();
+        saveSessions();
+        btn.parentNode.querySelectorAll('button').forEach(function(b){
+          b.classList.toggle('active', parseInt(b.getAttribute('data-min'),10) === e.minutes);
+        });
+        buzz(8);
       });
     });
 
@@ -1149,6 +1322,8 @@
     if(finishDayBtn){
       finishDayBtn.addEventListener('click', function(){
         session.finishedAt = Date.now();
+        state.justFinished = true;
+        buzz([30, 60, 30]);
         saveSessions(); render();
       });
     }
@@ -1432,8 +1607,14 @@
     });
   }
 
+  /* Al volver a la app solo se redibuja si cambio el dia (la app quedo abierta
+     de un dia para otro). Redibujar siempre cerraba el teclado y perdia el
+     foco cada vez que se desbloqueaba el celu entre series. */
+  var lastVisibleDay = isoDate(today());
   document.addEventListener('visibilitychange', function(){
-    if(!document.hidden) render();
+    if(document.hidden) return;
+    var d = isoDate(today());
+    if(d !== lastVisibleDay){ lastVisibleDay = d; render(); }
   });
 
   /* ---------- modo prueba ---------- */

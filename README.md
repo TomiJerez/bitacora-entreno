@@ -106,6 +106,9 @@ El archivo que genera "Exportar" tiene esta forma:
   cargarlos desde la plantilla de ese día. Sin esto era un callejón sin salida: `ensureSession` clona
   la plantilla al crear la sesión y nunca más, así que una sesión vacía se quedaba vacía para siempre.
 - **Reemplazar (✎)**: cambia el nombre del ejercicio **solo en esa sesión** — sirve para cuando la máquina está ocupada o la cambiaron. La plantilla no se toca, así que la semana siguiente vuelve el original. Enter confirma, Escape cancela, y un nombre vacío deja el anterior.
+- **Carga rápida de peso**: el recuadro "Última: 60 kg · Repetir" copia el peso anterior de un toque, y los botones −/+ suben o bajan 2,5 kg sin abrir el teclado (con el campo vacío arrancan desde el peso anterior). Respeta coma o punto según lo que venías usando. "Listo" en el teclado lo cierra.
+- **Sin redibujar al cargar**: tildar, elegir minutos o usar −/+ actualizan solo esa tarjeta, el contador y la barra de progreso. Tampoco se redibuja al volver a la app (salvo que haya cambiado el día): antes cada desbloqueo del celu entre series cerraba el teclado y perdía el foco.
+- **Animaciones**: entrada suave al cambiar de pantalla, pop en el tilde, barra de progreso del día y festejo corto (sello + vibración) al terminar el día. Se desactivan con `prefers-reduced-motion`.
 - **Checklist por ejercicio**: se marca el ejercicio entero, no serie por serie. El contador de arriba lleva el progreso (`2/4 ejercicios`).
 - **Cardio**: las tarjetas de cardio no piden kg; se elige la duración en el momento entre las opciones disponibles (10 o 15 min). Volver a tocar la opción elegida la desmarca.
 - **Un día solo queda registrado si tiene algo**: abrir la app en un día de rutina arma la sesión para
@@ -183,4 +186,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v14`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v15`) y subir ese número invalida el cache viejo.
