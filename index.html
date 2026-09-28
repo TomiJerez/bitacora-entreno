@@ -136,6 +136,7 @@
     display:flex; align-items:center; justify-content:center; flex:none;
   }
   .icon-btn.danger{color:var(--danger);}
+  .icon-btn.armed{width:auto; padding:0 10px; font-size:12px; font-weight:700; background:var(--danger); border-color:var(--danger); color:#fff;}
 
   .pill{
     font-family:var(--font-mono); font-size:12px; font-weight:600;
@@ -527,6 +528,40 @@
     a.click();
     document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    state.ui.lastExport = Date.now();
+    saveUi();
+  }
+
+  /* Sin recordatorio nadie exporta: se avisa si pasaron mas de BACKUP_STALE_DAYS
+     desde el ultimo export y hay algo que perder. */
+  var BACKUP_STALE_DAYS = 7;
+
+  function backupIsStale(){
+    if(Object.keys(recordedSessions()).length === 0) return false;
+    var last = state.ui.lastExport;
+    return !last || (Date.now() - last) > BACKUP_STALE_DAYS * 86400000;
+  }
+
+  function backupAgeText(){
+    var last = state.ui.lastExport;
+    if(!last) return 'Nunca exportaste una copia.';
+    var days = Math.floor((Date.now() - last) / 86400000);
+    if(days === 0) return 'Última copia: hoy.';
+    return 'Última copia: hace ' + days + (days === 1 ? ' día.' : ' días.');
+  }
+
+  function wireExportButton(){
+    viewEl.querySelectorAll('[data-action="exportData"]').forEach(function(exportBtn){
+      exportBtn.addEventListener('click', function(){
+        try{
+          exportData();
+          exportBtn.textContent = 'Archivo generado ✓';
+        }catch(err){
+          exportBtn.textContent = 'No se pudo exportar';
+        }
+        setTimeout(function(){ if(exportBtn.isConnected) exportBtn.textContent = 'Exportar a archivo'; }, 3000);
+      });
+    });
   }
 
   /* Valida lo justo para no pisar datos buenos con un archivo cualquiera. */
@@ -635,6 +670,10 @@
     historyOpenDate: null
   };
 
+  /* localStorage es la unica copia: pedir que el navegador no la desaloje
+     cuando se queda sin espacio. Si no lo concede, no cambia nada. */
+  try{ navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(function(){}); }catch(e){}
+
   /* ---------- sesiones ---------- */
   function cloneExercisesFromTemplate(dayKey){
     var day = state.template[dayKey];
@@ -665,7 +704,9 @@
   }
 
   function lastForExercise(name, beforeDate){
-    var dates = Object.keys(state.sessions).filter(function(d){ return d !== beforeDate; }).sort().reverse();
+    /* Solo fechas anteriores: al abrir una sesion vieja desde el Historial, la
+       referencia no puede venir de un dia posterior. */
+    var dates = Object.keys(state.sessions).filter(function(d){ return d < beforeDate; }).sort().reverse();
     for(var i=0;i<dates.length;i++){
       var sess = state.sessions[dates[i]];
       var found = null;
@@ -712,7 +753,9 @@
     if(state.ui.tab === 'hoy'){
       dayTitleEl.textContent = 'Hoy';
       var wk = weekdayKeyOf(now);
-      daySubEl.textContent = state.template[wk] ? state.template[wk].focus : 'Sin día programado';
+      var todaySession = state.sessions[todayIso];
+      daySubEl.textContent = todaySession ? todaySession.label
+        : (state.template[wk] ? state.template[wk].focus : 'Sin día programado');
       renderHoy(todayIso, wk);
     } else if(state.ui.tab === 'rutina'){
       dayTitleEl.textContent = 'Rutina';
@@ -810,6 +853,7 @@
     if(session.finishedAt){
       viewEl.innerHTML = installBannerHtml() + dayDoneHtml(session);
       wireInstallBanner();
+      wireExportButton();
       var reopen = viewEl.querySelector('[data-action="reopenDay"]');
       if(reopen){
         reopen.addEventListener('click', function(){
@@ -848,6 +892,14 @@
               '</div>';
     });
     html += '</div>';
+
+    /* Cerrar el dia es el momento natural para acordarse del backup. */
+    if(backupIsStale()){
+      html += '<div class="card stack" style="text-align:center;">';
+      html += '  <div class="ex-target">' + escapeHtml(backupAgeText()) + ' Conviene exportar una copia.</div>';
+      html += '  <button class="btn btn-primary small" data-action="exportData">Exportar a archivo</button>';
+      html += '</div>';
+    }
 
     html += '<div class="card stack" style="text-align:center;">';
     html += '  <div class="ex-target">¿Te faltó cargar algo?</div>';
@@ -1151,7 +1203,8 @@
       '<div class="row"><h3>Copia de seguridad</h3></div>' +
       '<p class="ex-target">Los datos viven solo en este navegador: si borrás los datos del sitio o desinstalás la app, se pierden. ' +
         'Exportá de vez en cuando y guardate el archivo.</p>' +
-      '<p class="ex-target"><strong>' + nSessions + '</strong> ' + (nSessions === 1 ? 'sesión guardada' : 'sesiones guardadas') + '.</p>' +
+      '<p class="ex-target"><strong>' + nSessions + '</strong> ' + (nSessions === 1 ? 'sesión guardada' : 'sesiones guardadas') + '. ' +
+        escapeHtml(backupAgeText()) + '</p>' +
       '<button class="btn btn-ghost small" data-action="exportData">Exportar a archivo</button>' +
       '<button class="btn btn-ghost small" data-action="importData">Importar desde archivo</button>' +
       '<input type="file" id="importFile" accept="application/json,.json" hidden>' +
@@ -1209,8 +1262,22 @@
         saveTemplate();
       });
     });
+    /* Aca la ✕ es permanente (saca el ejercicio de la rutina de todas las
+       semanas), asi que pide un segundo toque. */
     viewEl.querySelectorAll('[data-tpl-remove]').forEach(function(btn){
       btn.addEventListener('click', function(){
+        if(btn.dataset.armed !== '1'){
+          btn.dataset.armed = '1';
+          btn.textContent = '¿Quitar?';
+          btn.classList.add('armed');
+          setTimeout(function(){
+            if(!btn.isConnected) return;
+            btn.dataset.armed = '0';
+            btn.textContent = '✕';
+            btn.classList.remove('armed');
+          }, 4000);
+          return;
+        }
         var day = btn.getAttribute('data-day');
         var idx = parseInt(btn.getAttribute('data-ex'),10);
         state.template[day].exercises.splice(idx,1);
@@ -1261,18 +1328,7 @@
       });
     }
 
-    var exportBtn = viewEl.querySelector('[data-action="exportData"]');
-    if(exportBtn){
-      exportBtn.addEventListener('click', function(){
-        try{
-          exportData();
-          exportBtn.textContent = 'Archivo generado ✓';
-        }catch(err){
-          exportBtn.textContent = 'No se pudo exportar';
-        }
-        setTimeout(function(){ exportBtn.textContent = 'Exportar a archivo'; }, 3000);
-      });
-    }
+    wireExportButton();
 
     /* Importar pisa todo lo que haya, asi que va con doble confirmacion:
        el primer toque abre el archivo, el segundo aplica. */

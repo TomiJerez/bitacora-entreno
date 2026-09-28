@@ -81,7 +81,7 @@ Cada ejercicio tiene un `kind`:
 - `strength`: apunta a `targetSets` × `targetReps` (4 × 8-12 por defecto) y se registra con **un solo peso** (`weight`, el máximo levantado en el ejercicio) y un `done`. No se anota serie por serie.
 - `cardio`: no usa peso ni series. Ofrece un par de duraciones en `options` (10 y 15 min) y guarda la elegida en `minutes`, más el `done`.
 - `bitacora_template_version`: versión de la rutina por defecto que ya se aplicó a la plantilla guardada.
-- `bitacora_ui_v1`: preferencias de UI (tab activa, si se cerró el banner de instalación).
+- `bitacora_ui_v1`: preferencias de UI (tab activa, si se cerró el banner de instalación, `lastExport` con la fecha del último export).
 
 El archivo que genera "Exportar" tiene esta forma:
 
@@ -183,4 +183,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v13`) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v14`) y subir ese número invalida el cache viejo.
