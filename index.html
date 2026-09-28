@@ -89,6 +89,15 @@
     color:var(--text-muted);
   }
   .topbar h1{font-size:26px; margin-top:2px;}
+  /* Version visible para saber si el celu ya tiene la ultima. Tocarla busca
+     actualizacion y recarga. */
+  .version-pill{
+    position:absolute; right:16px; top:calc(10px + env(safe-area-inset-top,0px));
+    font-family:var(--font-mono); font-size:11.5px; font-weight:600; letter-spacing:.04em;
+    padding:6px 10px; border-radius:999px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text-muted); cursor:pointer; touch-action:manipulation;
+  }
+  .version-pill.update{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
   .topbar .sub{color:var(--text-muted); font-size:13.5px; margin-top:2px;}
 
   main#view{
@@ -325,6 +334,7 @@
 <div id="app">
   <header class="topbar">
     <div class="eyebrow" id="dateLabel">—</div>
+    <button type="button" class="version-pill" id="versionPill" aria-label="Versión de la app. Tocar para buscar actualización">v—</button>
     <h1 id="dayTitle">Bitácora</h1>
     <div class="sub" id="daySub"></div>
   </header>
@@ -1601,9 +1611,33 @@
 
   /* ---------- PWA: service worker (no rompe nada si falla) ----------
      El manifest y los theme-color van declarados en el <head>, no inyectados aca. */
+  /* APP_VERSION tiene que coincidir con CACHE_NAME en sw.js (bitacora-vNN). */
+  var APP_VERSION = '16';
+  var versionPill = document.getElementById('versionPill');
+  versionPill.textContent = 'v' + APP_VERSION;
+  var swReg = null;
+
+  versionPill.addEventListener('click', function(){
+    /* Los datos se guardan al tipear, asi que recargar no pierde nada. */
+    versionPill.textContent = 'Buscando…';
+    var done = function(){ location.reload(); };
+    if(swReg){ swReg.update().then(done, done); } else { done(); }
+  });
+
   if('serviceWorker' in navigator){
+    var hadController = !!navigator.serviceWorker.controller;
+    /* Si una version nueva toma el control con la app abierta, avisar en la
+       pildora en vez de recargar solo (podrias estar escribiendo un peso). */
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      if(!hadController){ hadController = true; return; }
+      versionPill.textContent = 'Nueva versión ↻';
+      versionPill.classList.add('update');
+    });
     window.addEventListener('load', function(){
-      navigator.serviceWorker.register('sw.js').catch(function(){});
+      navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(function(reg){
+        swReg = reg;
+        reg.update().catch(function(){});
+      }).catch(function(){});
     });
   }
 
