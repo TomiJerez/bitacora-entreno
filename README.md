@@ -78,7 +78,7 @@ nada de esto existe: `TEST_MODE` queda en `false` y las claves son las normales.
 
 Cada ejercicio tiene un `kind`:
 
-- `strength`: apunta a `targetSets` × `targetReps` (4 × 8-12 por defecto) y se registra con **un solo peso** (`weight`, el máximo levantado en el ejercicio) y un `done`. No se anota serie por serie.
+- `strength`: apunta a `targetSets` × `targetReps` (4 o 5 × 8-12 según el día) y se registra con **un solo peso** (`weight`, el máximo levantado en el ejercicio) y un `done`. No se anota serie por serie.
 - `cardio`: no usa peso ni series. Ofrece un par de duraciones en `options` (10 y 15 min) y guarda la elegida en `minutes`, más el `done`.
 - `bitacora_template_version`: versión de la rutina por defecto que ya se aplicó a la plantilla guardada.
 - `bitacora_ui_v1`: preferencias de UI (tab activa, si se cerró el banner de instalación, `lastExport` con la fecha del último export).
@@ -109,6 +109,8 @@ El archivo que genera "Exportar" tiene esta forma:
 - **Carga rápida de peso**: el recuadro "Última: 60 kg · Repetir" copia el peso anterior de un toque, y los botones −/+ suben o bajan 2,5 kg sin abrir el teclado (con el campo vacío arrancan desde el peso anterior). Respeta coma o punto según lo que venías usando. "Listo" en el teclado lo cierra.
 - **Sin redibujar al cargar**: tildar, elegir minutos o usar −/+ actualizan solo esa tarjeta, el contador y la barra de progreso. Tampoco se redibuja al volver a la app (salvo que haya cambiado el día): antes cada desbloqueo del celu entre series cerraba el teclado y perdía el foco.
 - **Animaciones**: entrada suave al cambiar de pantalla, pop en el tilde, barra de progreso del día y festejo corto (sello + vibración) al terminar el día. Se desactivan con `prefers-reduced-motion`.
+- **Reloj**: arriba a la derecha, la hora real con segundos, como referencia en el gimnasio. No es un
+  cronómetro ni guarda nada; en modo prueba también muestra la hora real, no la fecha simulada.
 - **Checklist por ejercicio**: se marca el ejercicio entero, no serie por serie. El contador de arriba lleva el progreso (`2/4 ejercicios`).
 - **Cardio**: las tarjetas de cardio no piden kg; se elige la duración en el momento entre las opciones disponibles (10 o 15 min). Volver a tocar la opción elegida la desmarca.
 - **Un día solo queda registrado si tiene algo**: abrir la app en un día de rutina arma la sesión para
@@ -131,12 +133,13 @@ El archivo que genera "Exportar" tiene esta forma:
 
 ## Rutina por defecto (editable desde la app)
 
-Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es cardio (10 o 15 min).
+Reps de 8-12. Los días de **3 ejercicios van a 5 series** y los de **4 ejercicios a 4 series**. Sin
+cardio (la cinta salió de la rutina; se puede agregar suelta desde "Hoy" si hace falta).
 
-- **Lunes** — Pecho / Tríceps: Pecho plano, Pecho aperturas, Tríceps con barra, Cinta
-- **Martes** — Espalda / Bíceps: Jalón al pecho, Remo, Bíceps martillo, Bíceps supino
-- **Miércoles** — Piernas: Cuádricep, Isquio, Ad/abductores o prensa, Cinta
-- **Jueves** — Hombro / Tríceps: Press hombro máquina, Vuelos, Tríceps con cinta, Cinta
+- **Lunes** — Pecho / Tríceps (5 series): Pecho plano, Pecho aperturas, Tríceps con barra
+- **Martes** — Espalda / Bíceps (4 series): Jalón al pecho, Remo, Bíceps martillo, Bíceps supino
+- **Miércoles** — Piernas (5 series): Cuádricep, Isquio, Ad/abductores o prensa
+- **Jueves** — Hombro / Tríceps (5 series): Press hombro máquina, Vuelos, Tríceps con cinta
 - **Viernes** — Pecho / Espalda / Hombro / Bíceps: Pecho inclinado, Jalón al pecho, Press militar, Bíceps supino
 
 ## Notas de diseño / decisiones tomadas
@@ -163,6 +166,9 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
 - El registro es deliberadamente grueso: el peso máximo y un tilde por ejercicio, en vez de kg y reps
   por serie. La versión anterior pedía cuatro filas por ejercicio y en la práctica era mucho tipeo en
   el gimnasio. No hay timer de descanso por la misma razón.
+- El parche 2 → 3 de `TEMPLATE_PATCHES` saca la Cinta de la plantilla guardada y pasa a 5 series los
+  días que quedan con 3 ejercicios, pero solo las series que seguían en 4: si alguna se había cambiado
+  a mano, se respeta.
 - Tampoco se cronometra el entreno. Había un inicio/fin con reloj en vivo y duración guardada; se sacó
   porque el dato no se usaba. Queda sólo `finishedAt` como marca de que el día se cerró — el valor es
   un timestamp, pero se lee como booleano.
@@ -186,4 +192,4 @@ Todos los ejercicios de fuerza apuntan a **4 series de 8-12 reps**. "Cinta" es c
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v17`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v18`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.

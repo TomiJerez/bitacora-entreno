@@ -94,7 +94,14 @@
   .top-actions{
     /* a la altura del titulo: arriba chocaba con la fecha larga */
     position:absolute; right:16px; top:calc(36px + env(safe-area-inset-top,0px));
-    display:flex; gap:6px; align-items:center;
+    display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; align-items:center;
+    max-width:200px;
+  }
+  /* Hora real, de referencia (no es un cronometro: no se guarda nada). */
+  .clock{
+    flex-basis:100%; text-align:right; margin-top:2px;
+    font-family:var(--font-mono); font-size:16px; font-weight:600; letter-spacing:.04em;
+    font-variant-numeric:tabular-nums; color:var(--text);
   }
   .install-pill{
     font-size:12.5px; font-weight:700; padding:6px 12px; border-radius:999px; border:none;
@@ -106,7 +113,7 @@
     background:var(--surface-2); color:var(--text-muted); cursor:pointer; touch-action:manipulation;
   }
   .version-pill.update{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
-  .topbar .sub{color:var(--text-muted); font-size:13.5px; margin-top:2px;}
+  .topbar .sub{color:var(--text-muted); font-size:13.5px; margin-top:2px; padding-right:96px;}
 
   main#view{
     flex:1; overflow-y:auto; padding:16px 16px calc(96px + env(safe-area-inset-bottom,0px));
@@ -345,6 +352,7 @@
     <div class="top-actions">
       <button type="button" class="install-pill" id="installPill" hidden>⤓ Instalar</button>
       <button type="button" class="version-pill" id="versionPill" aria-label="Versión de la app. Tocar para buscar actualización">v—</button>
+      <time class="clock" id="clock" aria-label="Hora actual">--:--:--</time>
     </div>
     <h1 id="dayTitle">Bitácora</h1>
     <div class="sub" id="daySub"></div>
@@ -414,20 +422,20 @@
   }
 
   /* ---------- datos por defecto ---------- */
-  /* Toda la rutina apunta a 4 series de 8-12; el cardio no usa series ni kg,
-     solo una duracion que se elige en el momento. */
+  /* Reps de 8-12. Los dias de 3 ejercicios van a 5 series, los de 4 a 4.
+     El cardio no usa series ni kg, solo una duracion que se elige en el
+     momento (ya no esta en la rutina, pero se puede agregar suelto). */
   var DEFAULT_SETS = 4, DEFAULT_REPS = '8-12', CARDIO_OPTIONS = [10, 15];
 
-  function ex(name){ return {id:uid(), name:name, kind:'strength', targetSets:DEFAULT_SETS, targetReps:DEFAULT_REPS}; }
+  function ex(name, sets){ return {id:uid(), name:name, kind:'strength', targetSets:sets || DEFAULT_SETS, targetReps:DEFAULT_REPS}; }
   function cardio(name){ return {id:uid(), name:name, kind:'cardio', options:CARDIO_OPTIONS.slice()}; }
 
   function defaultTemplate(){
     return {
       mon:{ focus:'Pecho / Tríceps', exercises:[
-        ex('Pecho plano'),
-        ex('Pecho aperturas'),
-        ex('Tríceps con barra'),
-        cardio('Cinta')
+        ex('Pecho plano', 5),
+        ex('Pecho aperturas', 5),
+        ex('Tríceps con barra', 5)
       ]},
       tue:{ focus:'Espalda / Bíceps', exercises:[
         ex('Jalón al pecho'),
@@ -436,16 +444,14 @@
         ex('Bíceps supino')
       ]},
       wed:{ focus:'Piernas', exercises:[
-        ex('Cuádricep'),
-        ex('Isquio'),
-        ex('Ad/abductores o prensa'),
-        cardio('Cinta')
+        ex('Cuádricep', 5),
+        ex('Isquio', 5),
+        ex('Ad/abductores o prensa', 5)
       ]},
       thu:{ focus:'Hombro / Tríceps', exercises:[
-        ex('Press hombro máquina'),
-        ex('Vuelos'),
-        ex('Tríceps con cinta'),
-        cardio('Cinta')
+        ex('Press hombro máquina', 5),
+        ex('Vuelos', 5),
+        ex('Tríceps con cinta', 5)
       ]},
       fri:{ focus:'Pecho / Espalda / Hombro / Bíceps', exercises:[
         ex('Pecho inclinado'),
@@ -493,7 +499,7 @@
      ya tiene su plantilla: loadTemplate la devuelve tal cual. Cada parche
      corre una sola vez, segun la version guardada, asi que si despues renombras
      el ejercicio a mano no te lo volvemos a pisar. */
-  var TEMPLATE_VERSION = 2;
+  var TEMPLATE_VERSION = 3;
 
   var TEMPLATE_PATCHES = [
     // 1 -> 2: el press militar del jueves pasa a maquina
@@ -501,6 +507,19 @@
       if(!t.thu || !Array.isArray(t.thu.exercises)) return;
       t.thu.exercises.forEach(function(e){
         if(e.name === 'Press militar') e.name = 'Press hombro máquina';
+      });
+    },
+    // 2 -> 3: sale la cinta; los dias que quedan con 3 ejercicios van a 5 series.
+    // Solo se tocan las series que siguen en el valor por defecto (4).
+    function(t){
+      DAY_ORDER.forEach(function(k){
+        var day = t[k];
+        if(!day || !Array.isArray(day.exercises)) return;
+        day.exercises = day.exercises.filter(function(e){ return !(e.kind === 'cardio' && e.name === 'Cinta'); });
+        var strength = day.exercises.filter(function(e){ return e.kind === 'strength'; });
+        if(strength.length === 3 && day.exercises.length === 3){
+          strength.forEach(function(e){ if(e.targetSets === DEFAULT_SETS) e.targetSets = 5; });
+        }
       });
     }
   ];
@@ -1660,7 +1679,7 @@
   /* ---------- PWA: service worker (no rompe nada si falla) ----------
      El manifest y los theme-color van declarados en el <head>, no inyectados aca. */
   /* APP_VERSION tiene que coincidir con CACHE_NAME en sw.js (bitacora-vNN). */
-  var APP_VERSION = '17';
+  var APP_VERSION = '18';
   var versionPill = document.getElementById('versionPill');
   versionPill.textContent = 'v' + APP_VERSION;
   var swReg = null;
@@ -1695,9 +1714,23 @@
   var lastVisibleDay = isoDate(today());
   document.addEventListener('visibilitychange', function(){
     if(document.hidden) return;
+    tickClock();
     var d = isoDate(today());
     if(d !== lastVisibleDay){ lastVisibleDay = d; render(); }
   });
+
+  /* ---------- reloj ----------
+     Hora real siempre, tambien en modo prueba (la fecha simulada no lo toca).
+     Se reprograma en cada cambio de segundo para no ir desfasado. */
+  var clockEl = document.getElementById('clock');
+  var clockTimer = null;
+  function tickClock(){
+    var d = new Date();
+    clockEl.textContent = pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+    clearTimeout(clockTimer);
+    clockTimer = setTimeout(tickClock, 1000 - d.getMilliseconds() + 5);
+  }
+  tickClock();
 
   /* ---------- modo prueba ---------- */
   function seedTestData(weeks){
