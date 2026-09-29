@@ -130,10 +130,13 @@
     flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
     background:transparent; border:none; border-radius:12px; padding:8px 4px;
     font-size:12px; font-weight:700; color:var(--text-muted); cursor:pointer;
+    transition:color .2s, transform .12s; touch-action:manipulation;
   }
-  .tab .dot{width:6px; height:6px; border-radius:50%; background:transparent;}
+  .tab:active{transform:scale(.93);}
+  .tab .dot{width:6px; height:6px; border-radius:50%; background:var(--accent); transform:scale(0);
+    transition:transform .35s cubic-bezier(.3,1.7,.5,1);}
   .tab.active{color:var(--accent);}
-  .tab.active .dot{background:var(--accent);}
+  .tab.active .dot{transform:scale(1);}
 
   .card{
     background:var(--surface); border:1px solid var(--border); border-radius:16px;
@@ -317,6 +320,26 @@
   .pill.bump{animation:bump .35s ease-out;}
   .num-input.flash{animation:flash .45s ease-out;}
 
+  /* El ejercicio recien tildado larga un halo verde. */
+  .ex-card.glow{animation:glow .8s ease-out;}
+  /* Al completar el dia la barra hace un brillo que la cruza una vez. */
+  .progress > span{position:relative; overflow:hidden;}
+  .progress.shine > span::after{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(100deg, transparent 20%, rgba(255,255,255,.55) 50%, transparent 80%);
+    animation:sweep .9s .2s ease-out both;
+  }
+  .use-last{transition:transform .1s, border-color .2s;}
+  .use-last:active{transform:scale(.98); border-color:var(--accent);}
+  .use-last .use-tag{transition:transform .15s;}
+  .use-last:active .use-tag{transform:translateX(3px);}
+  /* Los dos puntos del reloj respiran, marcando el segundo sin distraer. */
+  .clock .sep{animation:tick 1s steps(1) infinite; }
+  /* "Nueva version" late suave para que se note. */
+  .version-pill.update{animation:breathe 1.8s ease-in-out infinite;}
+  .topbar .swap{animation:rise .3s cubic-bezier(.2,.8,.2,1) both;}
+  .topbar .sub.swap{animation-delay:.05s;}
+  .history-item{animation:rise .3s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i, 0) * 35ms);}
   #view.enter > *{animation:rise .32s cubic-bezier(.2,.8,.2,1) both;}
   #view.enter > *:nth-child(2){animation-delay:.04s;}
   #view.enter > *:nth-child(3){animation-delay:.08s;}
@@ -341,6 +364,10 @@
   @keyframes flash{0%{background:var(--gold-bg); border-color:var(--gold);}100%{}}
   @keyframes rise{from{opacity:0; transform:translateY(8px);}to{opacity:1; transform:none;}}
   @keyframes stamp{0%{opacity:0; transform:scale(.4) rotate(-12deg);}100%{opacity:1; transform:none;}}
+  @keyframes glow{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent);}100%{box-shadow:0 0 0 12px transparent;}}
+  @keyframes sweep{from{transform:translateX(-100%);}to{transform:translateX(100%);}}
+  @keyframes tick{0%{opacity:1;}50%{opacity:.3;}}
+  @keyframes breathe{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);}50%{box-shadow:0 0 0 6px transparent;}}
   @keyframes ring{0%{opacity:.7; transform:scale(1);}100%{opacity:0; transform:scale(1.9);}}
 
   @media (prefers-reduced-motion: reduce){
@@ -883,6 +910,9 @@
       void viewEl.offsetWidth;   // reinicia la animacion
       viewEl.classList.add('enter');
       viewEl.scrollTop = 0;
+      [dayTitleEl, daySubEl].forEach(function(el){
+        el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap');
+      });
     }
   }
   var lastViewKey = null;
@@ -908,8 +938,11 @@
     var bar = viewEl.querySelector('[data-role="progress"]');
     if(bar){
       var pct = summary.total ? Math.round(summary.done / summary.total * 100) : 0;
+      var wasFull = bar.classList.contains('full');
       bar.firstChild.style.width = pct + '%';
       bar.classList.toggle('full', pct === 100);
+      bar.classList.remove('shine');
+      if(pct === 100 && !wasFull){ void bar.offsetWidth; bar.classList.add('shine'); }
     }
   }
 
@@ -1289,7 +1322,11 @@
         saveSessions();
         /* Sin render: se tocan solo la tarjeta y el progreso. */
         var card = viewEl.querySelector('.ex-card[data-ex="'+exIdx+'"]');
-        if(card) card.classList.toggle('done', e.done);
+        if(card){
+          card.classList.toggle('done', e.done);
+          card.classList.remove('glow');
+          if(e.done){ void card.offsetWidth; card.classList.add('glow'); }
+        }
         btn.classList.toggle('on', e.done);
         btn.classList.remove('pop');
         if(e.done){ void btn.offsetWidth; btn.classList.add('pop'); buzz(20); }
@@ -1662,11 +1699,11 @@
       return;
     }
     var html = '<div class="card" style="padding:4px 16px;">';
-    dates.forEach(function(d){
+    dates.forEach(function(d, idx){
       var s = state.sessions[d];
       var summary = setsSummary(s);
       var dur = s.finishedAt ? ' · terminado' : '';
-      html += '<button class="history-item" data-date="'+d+'">' +
+      html += '<button class="history-item" data-date="'+d+'" style="--i:'+Math.min(idx, 12)+'">' +
         '<span><span class="history-date">'+fmtDateShort(d)+' · '+escapeHtml(s.label)+'</span>' +
         '<div class="history-sub">'+summary.done+'/'+summary.total+' ejercicios'+dur+'</div></span>' +
         '<span class="pill">'+(DAY_LABEL[s.dayKey]||'')+'</span>' +
@@ -1689,7 +1726,7 @@
   /* ---------- PWA: service worker (no rompe nada si falla) ----------
      El manifest y los theme-color van declarados en el <head>, no inyectados aca. */
   /* APP_VERSION tiene que coincidir con CACHE_NAME en sw.js (bitacora-vNN). */
-  var APP_VERSION = '19';
+  var APP_VERSION = '20';
   var versionPill = document.getElementById('versionPill');
   versionPill.textContent = 'v' + APP_VERSION;
   var swReg = null;
@@ -1736,7 +1773,8 @@
   var clockTimer = null;
   function tickClock(){
     var d = new Date();
-    clockEl.textContent = pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+    var sep = '<span class="sep">:</span>';
+    clockEl.innerHTML = pad2(d.getHours()) + sep + pad2(d.getMinutes()) + sep + pad2(d.getSeconds());
     clearTimeout(clockTimer);
     clockTimer = setTimeout(tickClock, 1000 - d.getMilliseconds() + 5);
   }
