@@ -15,7 +15,7 @@
     --text:#12151B;
     --text-muted:#5B6472;
     --border:#DBDFE6;
-    --accent:#E85D3C;
+    --accent:#4F7D00;
     --accent-contrast:#FFFFFF;
     --ok:#2E9D63;
     --ok-bg:#E4F5EC;
@@ -35,8 +35,8 @@
       --text:#EEF0F3;
       --text-muted:#9AA3B2;
       --border:#2A303A;
-      --accent:#FF7A57;
-      --accent-contrast:#171100;
+      --accent:#B5E63C;
+      --accent-contrast:#141A05;
       --ok:#49C58A;
       --ok-bg:#123024;
       --gold:#E3B84F;
@@ -52,8 +52,8 @@
     --text:#EEF0F3;
     --text-muted:#9AA3B2;
     --border:#2A303A;
-    --accent:#FF7A57;
-    --accent-contrast:#171100;
+    --accent:#B5E63C;
+    --accent-contrast:#141A05;
     --ok:#49C58A;
     --ok-bg:#123024;
     --gold:#E3B84F;
@@ -94,12 +94,11 @@
   .top-actions{
     /* a la altura del titulo: arriba chocaba con la fecha larga */
     position:absolute; right:16px; top:calc(36px + env(safe-area-inset-top,0px));
-    display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; align-items:center;
-    max-width:200px;
+    display:flex; flex-direction:column; align-items:flex-end; gap:4px;
   }
+  .top-pills{display:flex; gap:6px; align-items:center;}
   /* Hora real, de referencia (no es un cronometro: no se guarda nada). */
   .clock{
-    flex-basis:100%; text-align:right; margin-top:2px;
     font-family:var(--font-mono); font-size:16px; font-weight:600; letter-spacing:.04em;
     font-variant-numeric:tabular-nums; color:var(--text);
   }
@@ -176,6 +175,9 @@
   .ex-target{color:var(--text-muted); font-size:12.5px; margin-top:2px; font-family:var(--font-mono);}
   .ex-last{color:var(--text-muted); font-size:12.5px; margin-top:6px; background:var(--surface-2); padding:6px 10px; border-radius:8px; font-family:var(--font-mono);}
 
+  /* El peso de la ultima vez se ve igual que uno cargado: tildar sin tocarlo
+     lo guarda (ver toggleExDone). Sin historial queda el guion apagado. */
+  .num-input.has-last::placeholder{color:var(--text); opacity:1;}
   .num-input{
     width:100%; border:1px solid var(--border); background:var(--bg); color:var(--text);
     border-radius:10px; padding:11px 10px; font-family:var(--font-mono); font-size:17px; font-variant-numeric:tabular-nums;
@@ -350,8 +352,10 @@
   <header class="topbar">
     <div class="eyebrow" id="dateLabel">—</div>
     <div class="top-actions">
-      <button type="button" class="install-pill" id="installPill" hidden>⤓ Instalar</button>
-      <button type="button" class="version-pill" id="versionPill" aria-label="Versión de la app. Tocar para buscar actualización">v—</button>
+      <div class="top-pills">
+        <button type="button" class="install-pill" id="installPill" hidden>⤓ Instalar</button>
+        <button type="button" class="version-pill" id="versionPill" aria-label="Versión de la app. Tocar para buscar actualización">v—</button>
+      </div>
       <time class="clock" id="clock" aria-label="Hora actual">--:--:--</time>
     </div>
     <h1 id="dayTitle">Bitácora</h1>
@@ -1203,7 +1207,7 @@
       html += '    <div class="field"><label for="w-'+i+'">Peso máximo</label>' +
               '<div class="weight-row">' +
               '<button type="button" class="step-btn" data-action="stepWeight" data-ex="'+i+'" data-delta="-1" aria-label="Restar '+WEIGHT_STEP+' kg">−</button>' +
-              '<input id="w-'+i+'" inputmode="decimal" enterkeyhint="done" autocomplete="off" class="num-input" data-field="weight" data-ex="'+i+'" ' +
+              '<input id="w-'+i+'" inputmode="decimal" enterkeyhint="done" autocomplete="off" class="num-input'+(last ? ' has-last' : '')+'" data-field="weight" data-ex="'+i+'" ' +
               'value="'+escapeHtml(e.weight || '')+'" placeholder="'+escapeHtml(placeholder)+'">' +
               '<button type="button" class="step-btn" data-action="stepWeight" data-ex="'+i+'" data-delta="1" aria-label="Sumar '+WEIGHT_STEP+' kg">+</button>' +
               '</div></div>';
@@ -1276,6 +1280,12 @@
         var weightInput = viewEl.querySelector('input[data-field="weight"][data-ex="'+exIdx+'"]');
         if(weightInput) e.weight = weightInput.value.trim();
         e.done = !e.done;
+        /* El placeholder con el peso anterior se ve como un peso cargado, asi que
+           tildar sin tocarlo tiene que guardarlo: si no, el historial quedaba sin peso. */
+        if(e.done && weightInput && !e.weight && weightInput.classList.contains('has-last')){
+          e.weight = weightInput.placeholder;
+          weightInput.value = e.weight;
+        }
         saveSessions();
         /* Sin render: se tocan solo la tarjeta y el progreso. */
         var card = viewEl.querySelector('.ex-card[data-ex="'+exIdx+'"]');
@@ -1679,7 +1689,7 @@
   /* ---------- PWA: service worker (no rompe nada si falla) ----------
      El manifest y los theme-color van declarados en el <head>, no inyectados aca. */
   /* APP_VERSION tiene que coincidir con CACHE_NAME en sw.js (bitacora-vNN). */
-  var APP_VERSION = '18';
+  var APP_VERSION = '19';
   var versionPill = document.getElementById('versionPill');
   versionPill.textContent = 'v' + APP_VERSION;
   var swReg = null;
