@@ -986,7 +986,7 @@
     var s = String(Math.round(n * 100) / 100);
     return /,/.test(String(like || '')) ? s.replace('.', ',') : s;
   }
-  var WEIGHT_STEP = 2.5;
+  var WEIGHT_STEP = 1;
 
   /* ---------- banner de instalación ---------- */
   var deferredInstallPrompt = null;
@@ -1761,7 +1761,7 @@
   /* ---------- PWA: service worker (no rompe nada si falla) ----------
      El manifest y los theme-color van declarados en el <head>, no inyectados aca. */
   /* APP_VERSION tiene que coincidir con CACHE_NAME en sw.js (bitacora-vNN). */
-  var APP_VERSION = '21';
+  var APP_VERSION = '22';
   var versionPill = document.getElementById('versionPill');
   versionPill.textContent = 'v' + APP_VERSION;
   var swReg = null;

@@ -106,7 +106,7 @@ El archivo que genera "Exportar" tiene esta forma:
   cargarlos desde la plantilla de ese día. Sin esto era un callejón sin salida: `ensureSession` clona
   la plantilla al crear la sesión y nunca más, así que una sesión vacía se quedaba vacía para siempre.
 - **Reemplazar (✎)**: cambia el nombre del ejercicio **solo en esa sesión** — sirve para cuando la máquina está ocupada o la cambiaron. La plantilla no se toca, así que la semana siguiente vuelve el original. Enter confirma, Escape cancela, y un nombre vacío deja el anterior.
-- **Carga rápida de peso**: el recuadro "Última: 60 kg · Repetir" copia el peso anterior de un toque, y los botones −/+ suben o bajan 2,5 kg sin abrir el teclado (con el campo vacío arrancan desde el peso anterior). Respeta coma o punto según lo que venías usando. "Listo" en el teclado lo cierra.
+- **Carga rápida de peso**: el recuadro "Última: 60 kg · Repetir" copia el peso anterior de un toque, y los botones −/+ suben o bajan 1 kg sin abrir el teclado (con el campo vacío arrancan desde el peso anterior). Respeta coma o punto según lo que venías usando. "Listo" en el teclado lo cierra.
   El peso anterior se ve en el campo con el mismo color que uno cargado, y tildar el ejercicio sin
   tocarlo lo guarda: antes se veía apagado (parecía que faltaba cargarlo) y tildar dejaba el
   historial sin peso. Sin historial queda el guion apagado.
@@ -203,4 +203,4 @@ cardio (la cinta salió de la rutina; se puede agregar suelta desde "Hoy" si hac
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v21`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v22`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.
