@@ -113,8 +113,9 @@ El archivo que genera "Exportar" tiene esta forma:
 - **Sin redibujar al cargar**: tildar, elegir minutos o usar −/+ actualizan solo esa tarjeta, el contador y la barra de progreso. Tampoco se redibuja al volver a la app (salvo que haya cambiado el día): antes cada desbloqueo del celu entre series cerraba el teclado y perdía el foco.
 - **Animaciones**: entrada suave al cambiar de pantalla (también el título), pop y halo verde en el
   tilde, barra de progreso del día con un brillo al completarla, punto de la tab activa con rebote,
-  historial que entra escalonado, los dos puntos del reloj que respiran, "Nueva versión" que late, y
-  festejo corto (sello + vibración) al terminar el día. Se desactivan con `prefers-reduced-motion`.
+  historial que entra escalonado con la franja de color del día, "Terminar día" que late cuando está
+  todo tildado, −/+ que hacen saltar el número, "Nueva versión" que late, y festejo corto (sello +
+  vibración) al terminar el día. Se desactivan con `prefers-reduced-motion`.
 - **Reloj**: arriba a la derecha, la hora real con segundos, como referencia en el gimnasio. No es un
   cronómetro ni guarda nada; en modo prueba también muestra la hora real, no la fecha simulada.
 - **Checklist por ejercicio**: se marca el ejercicio entero, no serie por serie. El contador de arriba lleva el progreso (`2/4 ejercicios`).
@@ -132,7 +133,9 @@ El archivo que genera "Exportar" tiene esta forma:
   invitaba a seguir cargando como si no se hubiera terminado.
 - **Terminar día**: un botón cierra el día y lo marca como terminado (queda visible en el Historial). Se puede reabrir si se cerró por error. No se mide cuánto duró el entreno.
 - **Rutina**: edición de la plantilla semanal — nombre, tipo (fuerza/cardio), series y reps por ejercicio. Incluye botón "Restaurar plantilla por defecto" con doble confirmación.
-- **Historial**: todas las sesiones pasadas, cada una abre en el mismo editor que "Hoy" (permite corregir datos cargados).
+- **Historial**: cada día de la semana tiene su color (franja a la izquierda y etiqueta), para
+  distinguirlos a simple vista; los colores son tokens `--day-mon` … `--day-fri`, con variante clara y
+  oscura. Todas las sesiones pasadas, cada una abre en el mismo editor que "Hoy" (permite corregir datos cargados).
 - **Copia de seguridad** (en la tab "Rutina"): exporta plantilla + sesiones a un `.json`, e importa desde
   un archivo previo. Importar reemplaza todo lo que haya, así que pide doble confirmación y muestra
   cuántas sesiones trae el archivo. Valida el contenido antes de pisar nada.
@@ -200,4 +203,4 @@ cardio (la cinta salió de la rutina; se puede agregar suelta desde "Hoy" si hac
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v20`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v21`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.

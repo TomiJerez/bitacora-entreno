@@ -17,6 +17,8 @@
     --border:#DBDFE6;
     --accent:#4F7D00;
     --accent-contrast:#FFFFFF;
+    /* Un color por dia de la semana, para distinguirlos en el Historial. */
+    --day-mon:#2F6FD1; --day-tue:#7A4FD0; --day-wed:#C2407E; --day-thu:#1C8C83; --day-fri:#A87A12;
     --ok:#2E9D63;
     --ok-bg:#E4F5EC;
     --gold:#B4872A;
@@ -37,6 +39,7 @@
       --border:#2A303A;
       --accent:#B5E63C;
       --accent-contrast:#141A05;
+      --day-mon:#5AA9FF; --day-tue:#B78CFF; --day-wed:#FF7AB6; --day-thu:#4FD1C5; --day-fri:#FFC857;
       --ok:#49C58A;
       --ok-bg:#123024;
       --gold:#E3B84F;
@@ -54,6 +57,7 @@
     --border:#2A303A;
     --accent:#B5E63C;
     --accent-contrast:#141A05;
+      --day-mon:#5AA9FF; --day-tue:#B78CFF; --day-wed:#FF7AB6; --day-thu:#4FD1C5; --day-fri:#FFC857;
     --ok:#49C58A;
     --ok-bg:#123024;
     --gold:#E3B84F;
@@ -272,6 +276,22 @@
     padding:12px 0; border-top:1px solid var(--border); cursor:pointer; background:none; border-left:none; border-right:none; border-bottom:none; width:100%; text-align:left;
   }
   .history-item:first-child{border-top:none;}
+  .history-item{position:relative; padding-left:14px; --dc:var(--text-muted); transition:transform .12s;}
+  .history-item:active{transform:scale(.985);}
+  .history-item::before{
+    content:''; position:absolute; left:0; top:12px; bottom:12px; width:4px; border-radius:4px;
+    background:var(--dc); transform-origin:top;
+    animation:grow .45s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i, 0) * 35ms + .1s);
+  }
+  .history-item .pill{
+    background:color-mix(in srgb, var(--dc) 16%, transparent); color:var(--dc);
+    animation:pop .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay:calc(var(--i, 0) * 35ms + .15s);
+  }
+  .history-item[data-day="mon"]{--dc:var(--day-mon);}
+  .history-item[data-day="tue"]{--dc:var(--day-tue);}
+  .history-item[data-day="wed"]{--dc:var(--day-wed);}
+  .history-item[data-day="thu"]{--dc:var(--day-thu);}
+  .history-item[data-day="fri"]{--dc:var(--day-fri);}
   .history-date{font-weight:700; font-size:14.5px;}
   .history-sub{color:var(--text-muted); font-size:12.5px; margin-top:2px;}
 
@@ -333,12 +353,19 @@
   .use-last:active{transform:scale(.98); border-color:var(--accent);}
   .use-last .use-tag{transition:transform .15s;}
   .use-last:active .use-tag{transform:translateX(3px);}
-  /* Los dos puntos del reloj respiran, marcando el segundo sin distraer. */
-  .clock .sep{animation:tick 1s steps(1) infinite; }
   /* "Nueva version" late suave para que se note. */
   .version-pill.update{animation:breathe 1.8s ease-in-out infinite;}
   .topbar .swap{animation:rise .3s cubic-bezier(.2,.8,.2,1) both;}
   .topbar .sub.swap{animation-delay:.05s;}
+  /* Con todo tildado, "Terminar dia" late para invitar a cerrarlo. */
+  .btn[data-action="finishDay"].ready{animation:breathe 1.6s ease-in-out infinite;}
+  /* Rutina: el dia elegido pasa con un toque de rebote. */
+  .day-tabs button{transition:background-color .2s, border-color .2s, color .2s, transform .12s;}
+  .day-tabs button:active{transform:scale(.94);}
+  .day-tabs button.active{animation:pop .35s cubic-bezier(.3,1.6,.5,1);}
+  /* Paso de los botones -/+: el numero salta un poquito. */
+  .num-input.nudge-up{animation:nudgeUp .25s ease-out, flash .45s ease-out;}
+  .num-input.nudge-down{animation:nudgeDown .25s ease-out, flash .45s ease-out;}
   .history-item{animation:rise .3s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i, 0) * 35ms);}
   #view.enter > *{animation:rise .32s cubic-bezier(.2,.8,.2,1) both;}
   #view.enter > *:nth-child(2){animation-delay:.04s;}
@@ -365,8 +392,10 @@
   @keyframes rise{from{opacity:0; transform:translateY(8px);}to{opacity:1; transform:none;}}
   @keyframes stamp{0%{opacity:0; transform:scale(.4) rotate(-12deg);}100%{opacity:1; transform:none;}}
   @keyframes glow{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent);}100%{box-shadow:0 0 0 12px transparent;}}
+  @keyframes grow{from{transform:scaleY(0);}to{transform:none;}}
+  @keyframes nudgeUp{0%{transform:translateY(0);}40%{transform:translateY(-3px);}100%{transform:none;}}
+  @keyframes nudgeDown{0%{transform:translateY(0);}40%{transform:translateY(3px);}100%{transform:none;}}
   @keyframes sweep{from{transform:translateX(-100%);}to{transform:translateX(100%);}}
-  @keyframes tick{0%{opacity:1;}50%{opacity:.3;}}
   @keyframes breathe{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);}50%{box-shadow:0 0 0 6px transparent;}}
   @keyframes ring{0%{opacity:.7; transform:scale(1);}100%{opacity:0; transform:scale(1.9);}}
 
@@ -943,6 +972,8 @@
       bar.classList.toggle('full', pct === 100);
       bar.classList.remove('shine');
       if(pct === 100 && !wasFull){ void bar.offsetWidth; bar.classList.add('shine'); }
+      var finishBtn = viewEl.querySelector('[data-action="finishDay"]');
+      if(finishBtn) finishBtn.classList.toggle('ready', pct === 100);
     }
   }
 
@@ -1141,7 +1172,7 @@
     var dayStatus = session.finishedAt
       ? '<span class="pill ok">Día terminado</span>' +
         '<button class="btn btn-ghost small" data-action="reopenDay">Reabrir</button>'
-      : '<button class="btn btn-primary small" data-action="finishDay">Terminar día</button>';
+      : '<button class="btn btn-primary small'+(summary.total && summary.done === summary.total ? ' ready' : '')+'" data-action="finishDay">Terminar día</button>';
 
     var html = '';
     html += '<div class="card stack">';
@@ -1302,6 +1333,10 @@
         }
         var next = Math.max(0, base + parseInt(btn.getAttribute('data-delta'),10) * WEIGHT_STEP);
         setWeight(exIdx, formatWeight(next, like));
+        if(inp){
+          var cls = parseInt(btn.getAttribute('data-delta'),10) > 0 ? 'nudge-up' : 'nudge-down';
+          inp.classList.remove('nudge-up', 'nudge-down'); void inp.offsetWidth; inp.classList.add(cls);
+        }
       });
     });
 
@@ -1703,7 +1738,7 @@
       var s = state.sessions[d];
       var summary = setsSummary(s);
       var dur = s.finishedAt ? ' · terminado' : '';
-      html += '<button class="history-item" data-date="'+d+'" style="--i:'+Math.min(idx, 12)+'">' +
+      html += '<button class="history-item" data-date="'+d+'" data-day="'+escapeHtml(s.dayKey || '')+'" style="--i:'+Math.min(idx, 12)+'">' +
         '<span><span class="history-date">'+fmtDateShort(d)+' · '+escapeHtml(s.label)+'</span>' +
         '<div class="history-sub">'+summary.done+'/'+summary.total+' ejercicios'+dur+'</div></span>' +
         '<span class="pill">'+(DAY_LABEL[s.dayKey]||'')+'</span>' +
@@ -1726,7 +1761,7 @@
   /* ---------- PWA: service worker (no rompe nada si falla) ----------
      El manifest y los theme-color van declarados en el <head>, no inyectados aca. */
   /* APP_VERSION tiene que coincidir con CACHE_NAME en sw.js (bitacora-vNN). */
-  var APP_VERSION = '20';
+  var APP_VERSION = '21';
   var versionPill = document.getElementById('versionPill');
   versionPill.textContent = 'v' + APP_VERSION;
   var swReg = null;
@@ -1773,8 +1808,7 @@
   var clockTimer = null;
   function tickClock(){
     var d = new Date();
-    var sep = '<span class="sep">:</span>';
-    clockEl.innerHTML = pad2(d.getHours()) + sep + pad2(d.getMinutes()) + sep + pad2(d.getSeconds());
+    clockEl.textContent = pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
     clearTimeout(clockTimer);
     clockTimer = setTimeout(tickClock, 1000 - d.getMilliseconds() + 5);
   }
