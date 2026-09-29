@@ -1,6 +1,6 @@
 /* Service worker minimalista: cachea el shell de la app para uso offline. */
 /* Tiene que coincidir con APP_VERSION en index.html. */
-var CACHE_NAME = 'bitacora-v22';
+var CACHE_NAME = 'bitacora-v23';
 
 /* Sin esto la app no arranca: si algo de acá falla, el SW no se instala. */
 var CORE = ['./', './index.html', './manifest.json', './fonts.css'];
@@ -76,6 +76,11 @@ function networkFirst(request){
     }).catch(function(){ clearTimeout(timer); fromCache(); });
   });
 }
+
+/* La pagina pregunta la version para no avisar "Nueva versión" de gusto. */
+self.addEventListener('message', function(event){
+  if(event.data === 'version' && event.ports && event.ports[0]) event.ports[0].postMessage(CACHE_NAME);
+});
 
 self.addEventListener('fetch', function(event){
   if(event.request.method !== 'GET') return;

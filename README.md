@@ -131,8 +131,20 @@ El archivo que genera "Exportar" tiene esta forma:
   minutos de cada uno. Los que quedaron sin hacer aparecen atenuados. Para cambiar algo hay que tocar
   "Corregir el día", que reabre el editor. Antes el día cerrado seguía completamente editable, lo que
   invitaba a seguir cargando como si no se hubiera terminado.
-- **Terminar día**: un botón cierra el día y lo marca como terminado (queda visible en el Historial). Se puede reabrir si se cerró por error. No se mide cuánto duró el entreno.
+- **Terminar día**: se habilita recién con al menos un ejercicio cargado (tilde, peso o minutos). Un botón cierra el día y lo marca como terminado (queda visible en el Historial). Se puede reabrir si se cerró por error. No se mide cuánto duró el entreno.
 - **Rutina**: edición de la plantilla semanal — nombre, tipo (fuerza/cardio), series y reps por ejercicio. Incluye botón "Restaurar plantilla por defecto" con doble confirmación.
+- **Gráfico de asistencia** (arriba del Historial, fijo; la lista scrollea abajo): grilla de las
+  últimas 16 semanas, una fila por día de la semana. Un día cuenta como entrenado con un solo ejercicio
+  registrado (tilde, peso o minutos) y se pinta con el color del día que se hizo; tocarlo abre esa
+  sesión. Lunes a viernes sin entrenar se marcan como falta, pero solo desde la primera sesión, y el
+  fin de semana nunca es falta. Arriba: días entrenados en las últimas 4 semanas, racha y total.
+  La racha es en **semanas seguidas con 3 o más días entrenados** (`STREAK_MIN_DAYS`), no en días:
+  siempre se descansa el finde y uno o dos días hábiles, así que una racha diaria se cortaría todas
+  las semanas. La semana en curso suma apenas llega a 3, y mientras no llegue no corta.
+- **Hacer otro día (⇄)**: en un día de rutina, antes de cargar nada (desaparece con el primer dato), cambia la sesión de hoy por la
+  rutina de otro día (p. ej. el miércoles hacer lo del jueves). La sesión queda con ese `dayKey`, así
+  que en el Historial y el gráfico sale con el color del día que se hizo. Marca `switched: true`, que
+  cuenta como registrada: si no, al cerrar la app sin cargar nada volvería a la rutina original.
 - **Historial**: cada día de la semana tiene su color (franja a la izquierda y etiqueta), para
   distinguirlos a simple vista; los colores son tokens `--day-mon` … `--day-fri`, con variante clara y
   oscura. Todas las sesiones pasadas, cada una abre en el mismo editor que "Hoy" (permite corregir datos cargados).
@@ -180,6 +192,12 @@ cardio (la cinta salió de la rutina; se puede agregar suelta desde "Hoy" si hac
 - El parche 2 → 3 de `TEMPLATE_PATCHES` saca la Cinta de la plantilla guardada y pasa a 5 series los
   días que quedan con 3 ejercicios, pero solo las series que seguían en 4: si alguna se había cambiado
   a mano, se respeta.
+- El aviso "Nueva versión" salía siempre después de una actualización: la página se pide primero a
+  la red, así que ya llegaba nueva, y el SW nuevo al tomar el control disparaba `controllerchange`
+  igual. Ahora la página le pregunta la versión al SW (`postMessage` + `MessageChannel`) y avisa solo
+  si no coincide con `APP_VERSION`. Tocar la píldora con el aviso recarga directo.
+- El reloj se revisa cada 250 ms y se escribe solo si cambió el segundo: con un timer por segundo, el
+  celu a veces lo atrasaba y se veía saltar o trabarse.
 - Tampoco se cronometra el entreno. Había un inicio/fin con reloj en vivo y duración guardada; se sacó
   porque el dato no se usaba. Queda sólo `finishedAt` como marca de que el día se cerró — el valor es
   un timestamp, pero se lee como booleano.
@@ -203,4 +221,4 @@ cardio (la cinta salió de la rutina; se puede agregar suelta desde "Hoy" si hac
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v22`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v23`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.

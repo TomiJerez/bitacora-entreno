@@ -295,6 +295,38 @@
   .history-date{font-weight:700; font-size:14.5px;}
   .history-sub{color:var(--text-muted); font-size:12.5px; margin-top:2px;}
 
+  /* Historial: el grafico queda fijo arriba y la lista scrollea abajo. */
+  #view.split{overflow:hidden; padding-bottom:12px;}
+  .hist-list{flex:1; min-height:0; overflow-y:auto; margin:0 -16px; padding:0 16px 24px;}
+  .heat-card{flex:none; padding:14px 16px 12px;}
+  .heat-stats{display:flex; gap:16px; margin-bottom:10px;}
+  .heat-stat b{display:block; font-family:var(--font-display); font-size:20px; font-weight:600; line-height:1.1;}
+  .heat-stat b small{font-size:13px; color:var(--text-muted);}
+  .heat-stat span{color:var(--text-muted); font-size:11.5px;}
+  .heat{display:grid; grid-template-columns:14px repeat(var(--weeks), minmax(0, 1fr)); gap:3px; align-items:center;}
+  .heat .mlabel{font-family:var(--font-mono); font-size:10px; color:var(--text-muted); white-space:nowrap; height:13px; line-height:13px; overflow:visible; min-width:0;}
+  .heat .dlabel{font-family:var(--font-mono); font-size:9.5px; color:var(--text-muted); text-align:center;}
+  .heat .cell{
+    aspect-ratio:1; border-radius:4px; border:none; padding:0; background:var(--surface-2);
+    animation:pop .35s cubic-bezier(.3,1.6,.5,1) both; animation-delay:calc(var(--c, 0) * 18ms);
+  }
+  .heat .cell.none{opacity:.45;}
+  .heat .cell.rest{opacity:.25;}
+  .heat .cell.miss{background:color-mix(in srgb, var(--danger) 28%, var(--surface-2));}
+  .heat .cell.future{background:transparent; box-shadow:inset 0 0 0 1px var(--border); opacity:.5;}
+  .heat .cell.did{background:var(--dc, var(--accent)); cursor:pointer; touch-action:manipulation;}
+  .heat .cell.did:active{transform:scale(.85);}
+  .heat .cell.today{opacity:1; box-shadow:0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent);}
+  .heat .cell[data-day="mon"]{--dc:var(--day-mon);}
+  .heat .cell[data-day="tue"]{--dc:var(--day-tue);}
+  .heat .cell[data-day="wed"]{--dc:var(--day-wed);}
+  .heat .cell[data-day="thu"]{--dc:var(--day-thu);}
+  .heat .cell[data-day="fri"]{--dc:var(--day-fri);}
+  .heat-legend{display:flex; gap:12px; margin-top:10px; color:var(--text-muted); font-size:11px; align-items:center; flex-wrap:wrap;}
+  .heat-legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px;}
+  .heat-legend .l-did{background:linear-gradient(90deg, var(--day-mon), var(--day-tue), var(--day-wed), var(--day-thu), var(--day-fri));}
+  .heat-legend .l-miss{background:color-mix(in srgb, var(--danger) 28%, var(--surface-2));}
+
   .install-banner{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:12px 14px; font-size:13px;
@@ -641,12 +673,18 @@
      si no se toca nada no tiene que quedar registrada: sin esto, mirar la app
      tres dias seguidos dejaba tres dias "0/4" en el historial, y eso ensucia
      cualquier analisis de adherencia o evolucion. */
+  function sessionHasData(s){
+    return (s.exercises || []).some(function(e){
+      return e.done || (e.weight !== '' && e.weight != null) || e.minutes;
+    });
+  }
+
   function sessionHasContent(s){
     if(!s) return false;
     if(s.finishedAt) return true;
     return (s.exercises || []).some(function(e){
       return e.done || (e.weight !== '' && e.weight != null) || e.minutes || e.custom || e.renamed;
-    });
+    }) || !!s.switched;
   }
 
   /* Las sesiones que realmente cuentan: lo que se guarda, exporta y lista. */
@@ -903,6 +941,7 @@
   }
 
   function render(){
+    viewEl.classList.remove('split');
     document.querySelectorAll('.tab').forEach(function(btn){
       btn.classList.toggle('active', btn.getAttribute('data-tab') === state.ui.tab);
     });
@@ -957,7 +996,22 @@
 
   /* Actualiza contador y barra sin redibujar la pantalla: un render completo
      cierra el teclado, mueve el scroll y corta las animaciones. */
+  /* Terminar dia recien se habilita con algo cargado, y desde ahi ya no se
+     ofrece "Hacer otro dia" (pisaria lo cargado). Va sin re-render. */
+  function refreshDayControls(session){
+    var has = sessionHasData(session);
+    var finishBtn = viewEl.querySelector('[data-action="finishDay"]');
+    if(finishBtn) finishBtn.disabled = !has;
+    if(has){
+      viewEl.querySelectorAll('[data-action="toggleSwitchDay"], [data-role="switchDays"]').forEach(function(el){
+        var row = el.closest('.row') || el;
+        row.remove();
+      });
+    }
+  }
+
   function refreshProgress(session){
+    refreshDayControls(session);
     var summary = setsSummary(session);
     var pill = viewEl.querySelector('[data-role="count"]');
     if(pill){
@@ -1172,7 +1226,7 @@
     var dayStatus = session.finishedAt
       ? '<span class="pill ok">Día terminado</span>' +
         '<button class="btn btn-ghost small" data-action="reopenDay">Reabrir</button>'
-      : '<button class="btn btn-primary small'+(summary.total && summary.done === summary.total ? ' ready' : '')+'" data-action="finishDay">Terminar día</button>';
+      : '<button class="btn btn-primary small'+(summary.total && summary.done === summary.total ? ' ready' : '')+'" data-action="finishDay"'+(sessionHasData(session) ? '' : ' disabled')+'>Terminar día</button>';
 
     var html = '';
     html += '<div class="card stack">';
@@ -1185,6 +1239,14 @@
     html += '  <div class="row">' + dayStatus + '</div>';
     if(offDay){
       html += '  <div class="row"><button class="btn btn-ghost small" data-action="changeDay">← Elegir otro día</button></div>';
+    } else if(isToday && !session.finishedAt && !sessionHasData(session)){
+      /* Cambiar la rutina de hoy por la de otro dia (p. ej. el miercoles hacer
+         lo del jueves). Solo antes de cargar nada, para no pisar datos. */
+      html += '  <div class="row"><button class="btn btn-ghost small" data-action="toggleSwitchDay">⇄ Hacer otro día</button></div>';
+      html += '  <div class="day-tabs" data-role="switchDays" hidden>' +
+               DAY_ORDER.filter(function(k){ return k !== session.dayKey; }).map(function(k){
+                 return '<button data-action="switchDay" data-day="'+k+'">'+DAY_LABEL[k]+'</button>';
+               }).join('') + '</div>';
     }
     html += '</div>';
 
@@ -1293,6 +1355,7 @@
         var exIdx = parseInt(inp.getAttribute('data-ex'),10);
         session.exercises[exIdx].weight = inp.value.trim();
         saveSessions();
+        refreshDayControls(session);
       });
       // "Listo" en el teclado lo cierra
       inp.addEventListener('keydown', function(ev){
@@ -1304,6 +1367,7 @@
       var inp = viewEl.querySelector('input[data-field="weight"][data-ex="'+exIdx+'"]');
       session.exercises[exIdx].weight = value;
       saveSessions();
+      refreshDayControls(session);
       if(inp){
         inp.value = value;
         inp.classList.remove('flash'); void inp.offsetWidth; inp.classList.add('flash');
@@ -1376,6 +1440,7 @@
         var e = session.exercises[exIdx];
         e.minutes = (e.minutes === min) ? null : min;   // volver a tocar la opcion elegida la desmarca
         saveSessions();
+        refreshDayControls(session);
         btn.parentNode.querySelectorAll('button').forEach(function(b){
           b.classList.toggle('active', parseInt(b.getAttribute('data-min'),10) === e.minutes);
         });
@@ -1409,6 +1474,27 @@
         saveSessions(); render();
       });
     }
+
+    var switchToggle = viewEl.querySelector('[data-action="toggleSwitchDay"]');
+    if(switchToggle){
+      switchToggle.addEventListener('click', function(){
+        var row = viewEl.querySelector('[data-role="switchDays"]');
+        if(row) row.hidden = !row.hidden;
+      });
+    }
+    /* La sesion pasa a ser la de ese dia (ejercicios, enfoque y color en el
+       Historial). `switched` la cuenta como registrada: si no, al cerrar la app
+       sin cargar nada volveria a armarse con la rutina original. */
+    viewEl.querySelectorAll('[data-action="switchDay"]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var day = btn.getAttribute('data-day');
+        session.dayKey = day;
+        session.label = (state.template[day] && state.template[day].focus) || DAY_LABEL[day];
+        session.exercises = cloneExercisesFromTemplate(day);
+        session.switched = true;
+        saveSessions(); buzz(8); render();
+      });
+    });
 
     var restoreBtn = viewEl.querySelector('[data-action="restoreFromTemplate"]');
     if(restoreBtn){
@@ -1714,6 +1800,102 @@
   }
 
   /* ---------- HISTORIAL ---------- */
+  /* ---------- grafico de asistencia ----------
+     Un dia cuenta como entrenado con un solo ejercicio registrado (tilde,
+     peso o minutos). Lunes a viernes sin entrenar cuentan como faltas, pero
+     solo desde la primera sesion: lo anterior no es falta, es que no se usaba
+     la app. El fin de semana nunca es falta. */
+  var HEAT_WEEKS = 16;
+  var MONTHS_SHORT = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+  function sessionTrained(s){
+    return !!s && (s.exercises || []).some(function(e){
+      return e.done || (e.weight !== '' && e.weight != null) || e.minutes;
+    });
+  }
+  function addDays(d, n){ return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+
+  /* Racha en semanas, no en dias: siempre se descansa el finde y uno o dos
+     dias habiles, asi que una racha diaria se cortaria todas las semanas.
+     Una semana cuenta si tiene al menos STREAK_MIN_DAYS dias entrenados. La
+     semana en curso suma si ya llego, y si todavia no, no corta. */
+  var STREAK_MIN_DAYS = 3;
+
+  function weekStreak(now, first){
+    var monday = addDays(now, -((now.getDay() + 6) % 7));
+    var streak = 0;
+    for(var w = 0; w < 520; w++){
+      var mon = addDays(monday, -7 * w);
+      var sun = isoDate(addDays(mon, 6));
+      if(sun < first) break;   // semana anterior al primer entreno
+      var count = 0;
+      for(var d = 0; d < 7; d++){
+        if(sessionTrained(state.sessions[isoDate(addDays(mon, d))])) count++;
+      }
+      if(count >= STREAK_MIN_DAYS){ streak++; continue; }
+      if(w === 0) continue;   // semana en curso: todavia puede llegar
+      break;
+    }
+    return streak;
+  }
+
+  function historyChartHtml(){
+    var now = today();
+    var todayIso = isoDate(now);
+    var trainedDates = Object.keys(state.sessions).filter(function(d){ return sessionTrained(state.sessions[d]); }).sort();
+    var first = trainedDates[0] || todayIso;
+
+    // lunes de la semana actual, y de ahi HEAT_WEEKS-1 semanas para atras
+    var monday = addDays(now, -((now.getDay() + 6) % 7));
+    var start = addDays(monday, -(HEAT_WEEKS - 1) * 7);
+
+    var html = '<div class="heat" style="--weeks:'+HEAT_WEEKS+'">';
+    html += '<span></span>';
+    var prevMonth = -1;
+    for(var w = 0; w < HEAT_WEEKS; w++){
+      var wd = addDays(start, w * 7);
+      html += '<span class="mlabel">'+(wd.getMonth() !== prevMonth ? MONTHS_SHORT[wd.getMonth()] : '')+'</span>';
+      prevMonth = wd.getMonth();
+    }
+    // una fila por dia de la semana, una columna por semana
+    var LETTERS = ['L','M','M','J','V','S','D'];
+    for(var r = 0; r < 7; r++){
+      html += '<span class="dlabel">'+LETTERS[r]+'</span>';
+      for(var c = 0; c < HEAT_WEEKS; c++){
+        var iso = isoDate(addDays(start, c * 7 + r));
+        var sess = state.sessions[iso];
+        var cls, extra = '', title = fmtDateShort(iso);
+        if(iso > todayIso){ cls = 'future'; }
+        else if(sessionTrained(sess)){
+          cls = 'did'; extra = ' data-date="'+iso+'" data-day="'+escapeHtml(sess.dayKey || '')+'"';
+          title += ' · ' + sess.label;
+        }
+        else if(r >= 5){ cls = 'rest'; }
+        else if(iso === todayIso || iso < first){ cls = 'none'; }
+        else { cls = 'miss'; title += ' · no entrenaste'; }
+        if(iso === todayIso) cls += ' today';
+        html += '<button type="button" class="cell '+cls+'"'+extra+' style="--c:'+c+'" aria-label="'+escapeHtml(title)+'"></button>';
+      }
+    }
+    html += '</div>';
+
+    // dias entrenados en las ultimas 4 semanas (sin denominador: el descanso
+    // de entre semana es parte del plan, no una falta)
+    var did = 0;
+    for(var i = 0; i < 28; i++){
+      if(sessionTrained(state.sessions[isoDate(addDays(now, -i))])) did++;
+    }
+    var streak = weekStreak(now, first);
+
+    var stats = '<div class="heat-stats">' +
+      '<div class="heat-stat"><b>'+did+'</b><span>días en 4 semanas</span></div>' +
+      '<div class="heat-stat"><b>'+streak+'</b><span>'+(streak === 1 ? 'semana' : 'semanas')+' de racha</span></div>' +
+      '<div class="heat-stat"><b>'+trainedDates.length+'</b><span>en total</span></div>' +
+    '</div>';
+    var legend = '<div class="heat-legend"><span><i class="l-did"></i>Entrené</span><span><i class="l-miss"></i>No fui</span></div>';
+    return '<div class="card heat-card">' + stats + html + legend + '</div>';
+  }
+
   function renderHistorial(){
     if(state.historyOpenDate){
       var session = state.sessions[state.historyOpenDate];
@@ -1733,7 +1915,8 @@
       viewEl.innerHTML = '<div class="card empty">Todavía no registraste ninguna sesión.</div>';
       return;
     }
-    var html = '<div class="card" style="padding:4px 16px;">';
+    viewEl.classList.add('split');
+    var html = historyChartHtml() + '<div class="hist-list"><div class="card" style="padding:4px 16px;">';
     dates.forEach(function(d, idx){
       var s = state.sessions[d];
       var summary = setsSummary(s);
@@ -1744,8 +1927,13 @@
         '<span class="pill">'+(DAY_LABEL[s.dayKey]||'')+'</span>' +
       '</button>';
     });
-    html += '</div>';
+    html += '</div></div>';
     viewEl.innerHTML = html;
+    viewEl.querySelectorAll('.heat .cell.did').forEach(function(cell){
+      cell.addEventListener('click', function(){
+        state.historyOpenDate = cell.getAttribute('data-date'); render();
+      });
+    });
     viewEl.querySelectorAll('.history-item').forEach(function(btn){
       btn.addEventListener('click', function(){
         state.historyOpenDate = btn.getAttribute('data-date'); render();
@@ -1761,15 +1949,18 @@
   /* ---------- PWA: service worker (no rompe nada si falla) ----------
      El manifest y los theme-color van declarados en el <head>, no inyectados aca. */
   /* APP_VERSION tiene que coincidir con CACHE_NAME en sw.js (bitacora-vNN). */
-  var APP_VERSION = '22';
+  var APP_VERSION = '23';
   var versionPill = document.getElementById('versionPill');
   versionPill.textContent = 'v' + APP_VERSION;
   var swReg = null;
 
   versionPill.addEventListener('click', function(){
     /* Los datos se guardan al tipear, asi que recargar no pierde nada. */
+    if(versionPill.classList.contains('update')){ location.reload(); return; }
     versionPill.textContent = 'Buscando…';
-    var done = function(){ location.reload(); };
+    var reloaded = false;
+    var done = function(){ if(!reloaded){ reloaded = true; location.reload(); } };
+    setTimeout(done, 4000);   // sin señal update() puede tardar: no dejar la pildora colgada
     if(swReg){ swReg.update().then(done, done); } else { done(); }
   });
 
@@ -1777,10 +1968,21 @@
     var hadController = !!navigator.serviceWorker.controller;
     /* Si una version nueva toma el control con la app abierta, avisar en la
        pildora en vez de recargar solo (podrias estar escribiendo un peso). */
+    /* Ojo: la pagina se pide primero a la red, asi que casi siempre ya es la
+       nueva cuando el SW nuevo toma el control. Por eso se le pregunta la
+       version al SW y solo se avisa si no coincide con la de esta pagina. */
     navigator.serviceWorker.addEventListener('controllerchange', function(){
       if(!hadController){ hadController = true; return; }
-      versionPill.textContent = 'Nueva versión ↻';
-      versionPill.classList.add('update');
+      var ctrl = navigator.serviceWorker.controller;
+      if(!ctrl || typeof MessageChannel === 'undefined') return;
+      var ch = new MessageChannel();
+      ch.port1.onmessage = function(ev){
+        if(ev.data && ev.data !== 'bitacora-v' + APP_VERSION){
+          versionPill.textContent = 'Nueva versión ↻';
+          versionPill.classList.add('update');
+        }
+      };
+      ctrl.postMessage('version', [ch.port2]);
     });
     window.addEventListener('load', function(){
       navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(function(reg){
@@ -1803,16 +2005,17 @@
 
   /* ---------- reloj ----------
      Hora real siempre, tambien en modo prueba (la fecha simulada no lo toca).
-     Se reprograma en cada cambio de segundo para no ir desfasado. */
+     Se mira cada 250 ms y se escribe solo si cambio el segundo: con un timer
+     por segundo, el celu a veces lo atrasaba y el reloj saltaba o se trababa. */
   var clockEl = document.getElementById('clock');
   var clockTimer = null;
   function tickClock(){
     var d = new Date();
-    clockEl.textContent = pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
-    clearTimeout(clockTimer);
-    clockTimer = setTimeout(tickClock, 1000 - d.getMilliseconds() + 5);
+    var txt = pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+    if(clockEl.textContent !== txt) clockEl.textContent = txt;
   }
   tickClock();
+  clockTimer = setInterval(tickClock, 250);
 
   /* ---------- modo prueba ---------- */
   function seedTestData(weeks){
