@@ -99,6 +99,9 @@ El archivo que genera "Exportar" tiene esta forma:
 
 ## Funcionalidad
 
+- **Inicio en Hoy**: cada carga o reapertura de la app arranca en Hoy, aunque se haya cerrado
+  en Rutina o Historial. Conserva las preferencias y las fechas de respaldo. Volver del segundo
+  plano durante la misma sesión mantiene la pantalla actual (también durante la autorización de Drive).
 - **Hoy**: arma el día según la plantilla semanal. Cada ejercicio es una tarjeta con el peso y un tilde; el placeholder del peso muestra el último registrado para ese ejercicio. Permite agregar un ejercicio suelto (fuerza o cardio) o copiar los ejercicios de otro día.
 - **Elegir otro día (←)**: cuando hoy no es un día de la rutina y se armó el entreno eligiendo un día
   a mano, aparece un botón para volver a esa elección. Sin él quedaba sin salida: al crearse la sesión,
@@ -253,4 +256,4 @@ cardio (la cinta salió de la rutina; se puede agregar suelta desde "Hoy" si hac
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v24`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v25`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.

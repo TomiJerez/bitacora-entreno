@@ -918,6 +918,8 @@
     ui: loadUi(),
     historyOpenDate: null
   };
+  // Cada inicio abre Hoy; las demás preferencias y fechas de respaldo se conservan.
+  state.ui.tab = 'hoy';
 
   /* localStorage es la unica copia: pedir que el navegador no la desaloje
      cuando se queda sin espacio. Si no lo concede, no cambia nada. */
@@ -2005,7 +2007,7 @@
   /* ---------- PWA: service worker (no rompe nada si falla) ----------
      El manifest y los theme-color van declarados en el <head>, no inyectados aca. */
   /* APP_VERSION tiene que coincidir con CACHE_NAME en sw.js (bitacora-vNN). */
-  var APP_VERSION = '24';
+  var APP_VERSION = '25';
   var versionPill = document.getElementById('versionPill');
   versionPill.textContent = 'v' + APP_VERSION;
   var swReg = null;
