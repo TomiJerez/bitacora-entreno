@@ -1,9 +1,9 @@
 /* Service worker minimalista: cachea el shell de la app para uso offline. */
 /* Tiene que coincidir con APP_VERSION en index.html. */
-var CACHE_NAME = 'bitacora-v23';
+var CACHE_NAME = 'bitacora-v24';
 
 /* Sin esto la app no arranca: si algo de acá falla, el SW no se instala. */
-var CORE = ['./', './index.html', './manifest.json', './fonts.css'];
+var CORE = ['./', './index.html', './manifest.json', './fonts.css', './drive-backup.js'];
 
 /* Mejora la experiencia pero no es crítico: se cachea best-effort. */
 var ASSETS = [
@@ -84,6 +84,8 @@ self.addEventListener('message', function(event){
 
 self.addEventListener('fetch', function(event){
   if(event.request.method !== 'GET') return;
+  // Google Identity y Drive requieren red y no deben entrar al cache de la app.
+  if(new URL(event.request.url).origin !== self.location.origin) return;
   if(event.request.mode === 'navigate'){
     event.respondWith(networkFirst(event.request));
     return;

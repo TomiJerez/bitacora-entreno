@@ -10,11 +10,13 @@ https://claude.ai/artifact/1daBM2muvPKgDjKithRubY
 - `index.html` — toda la app: markup, estilos y lógica (vanilla JS, sin dependencias ni build step).
 - `manifest.json` — manifest de la PWA (nombre, íconos, modo standalone).
 - `sw.js` — service worker mínimo, cachea el shell de la app para que funcione offline.
+- `drive-backup.js` — autorización con Google Identity Services y subida manual del JSON a Drive.
 - `icon-192.png` / `icon-512.png` — íconos generados localmente.
 - `fonts.css` + `fonts/` — Oswald, Manrope e IBM Plex Mono auto-hospedadas (subset latin, 10 archivos woff2, ~214 KB).
 
-No hay backend, no hay build (no hace falta `npm install` ni bundler). Es HTML/CSS/JS plano, y no
-contacta ningún servidor externo: una vez servida, funciona entera sin red.
+No hay backend ni build (no hace falta `npm install` ni bundler). Es HTML/CSS/JS plano.
+El registro y el historial funcionan sin red; el respaldo opcional a Drive necesita conexión.
+Google Identity Services se carga al entrar a Rutina, sin bloquear el resto de la app si falla.
 
 ## Cómo correrla localmente
 
@@ -151,6 +153,30 @@ El archivo que genera "Exportar" tiene esta forma:
 - **Copia de seguridad** (en la tab "Rutina"): exporta plantilla + sesiones a un `.json`, e importa desde
   un archivo previo. Importar reemplaza todo lo que haya, así que pide doble confirmación y muestra
   cuántas sesiones trae el archivo. Valida el contenido antes de pisar nada.
+- **Guardar en Drive** (en Rutina): conecta la cuenta Google y sube el mismo JSON completo que
+  Exportar. Cada toque crea una copia nueva `bitacora-<fecha-hora>.json` en Mi unidad, sin
+  reemplazar respaldos anteriores. Confirma la subida con un enlace al archivo y recuerda la fecha
+  sólo después de que Drive devuelve el ID. En modo prueba el nombre incluye `PRUEBA`.
+- **Cruz roja en asistencia**: los días hábiles pasados sin entreno llevan una × roja y la leyenda
+  "No fui". Hoy, los días futuros, el fin de semana y las fechas anteriores al primer entreno
+  conservan su tratamiento anterior.
+
+## Configuración de Google Drive
+
+El cliente OAuth web está configurado en Google Cloud, proyecto `project-ec6adfea-6352-4840-beb`
+(My First Project), con la API `drive.googleapis.com` habilitada. Marca: Bitácora de Entreno.
+Orígenes JavaScript autorizados: `https://tomijerez.github.io` y `http://localhost:8765`.
+El ID público está en `DRIVE_CLIENT_ID` de `index.html`; no se usa client secret ni API key.
+OAuth está en modo Prueba: la cuenta personal se agrega en Google Auth Platform → Público →
+Usuarios de prueba. Otras cuentas requieren incorporarse allí antes de autorizar.
+
+Se solicita únicamente `https://www.googleapis.com/auth/drive.file`, que permite gestionar
+archivos creados o seleccionados para esta app. No se lista ni modifica el resto del Drive.
+Los tokens duran sólo en memoria; al vencer o recargar, Google puede volver a pedir autorización.
+No hay sincronización automática ni descarga/importación desde Drive: para restaurar, descargar
+el JSON de Drive y usar Importar desde archivo. La exportación local sigue disponible sin conexión.
+
+Pruebas automáticas, sin instalar dependencias: `node --test` (Node.js 18+).
 
 ## Rutina por defecto (editable desde la app)
 
@@ -165,6 +191,12 @@ cardio (la cinta salió de la rutina; se puede agregar suelta desde "Hoy" si hac
 
 ## Notas de diseño / decisiones tomadas
 
+- El respaldo a Drive usa el token model de Google Identity Services y una subida multipart a
+  Drive API v3. El SDK se prepara antes del toque que abre OAuth para conservar la activación
+  del usuario. No se guardan tokens en localStorage ni se agrega un servidor. Sólo una subida
+  simultánea, timeout de red de 30 segundos y sin reintentos automáticos que dupliquen copias.
+- El service worker ignora solicitudes de otros orígenes: ni OAuth, ni respuestas autenticadas
+  de Google se cachean. `drive-backup.js` sí forma parte del shell local para abrir offline.
 - Color de acento verde lima (`--accent`, más oscuro en modo claro para que contraste); los íconos
   usan el mismo lima.
 - Sin frameworks ni librerías externas (bundle mínimo, cero dependencias que puedan romperse).
@@ -221,4 +253,4 @@ cardio (la cinta salió de la rutina; se puede agregar suelta desde "Hoy" si hac
   y los íconos). El shell crítico va con `addAll` — si falla, el SW no se instala — y fuentes e íconos
   se cachean best-effort, para que un archivo que falte no aborte la instalación entera.
 - Si se edita `index.html` y se vuelve a desplegar, puede hacer falta forzar refresh: el `CACHE_NAME`
-  en `sw.js` está versionado (hoy `bitacora-v23`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.
+  en `sw.js` está versionado (hoy `bitacora-v24`, igual que `APP_VERSION` en `index.html`, que se ve arriba a la derecha) y subir ese número invalida el cache viejo.

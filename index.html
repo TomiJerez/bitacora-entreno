@@ -312,7 +312,7 @@
   }
   .heat .cell.none{opacity:.45;}
   .heat .cell.rest{opacity:.25;}
-  .heat .cell.miss{background:color-mix(in srgb, var(--danger) 28%, var(--surface-2));}
+  .heat .cell.miss{background:color-mix(in srgb, var(--danger) 12%, var(--surface-2)); color:var(--danger); font:bold 13px/1 var(--font-mono); display:grid; place-items:center;}
   .heat .cell.future{background:transparent; box-shadow:inset 0 0 0 1px var(--border); opacity:.5;}
   .heat .cell.did{background:var(--dc, var(--accent)); cursor:pointer; touch-action:manipulation;}
   .heat .cell.did:active{transform:scale(.85);}
@@ -325,7 +325,7 @@
   .heat-legend{display:flex; gap:12px; margin-top:10px; color:var(--text-muted); font-size:11px; align-items:center; flex-wrap:wrap;}
   .heat-legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px;}
   .heat-legend .l-did{background:linear-gradient(90deg, var(--day-mon), var(--day-tue), var(--day-wed), var(--day-thu), var(--day-fri));}
-  .heat-legend .l-miss{background:color-mix(in srgb, var(--danger) 28%, var(--surface-2));}
+  .heat-legend .l-miss{color:var(--danger); font:bold 12px/10px var(--font-mono); font-style:normal; text-align:center;}
 
   .install-banner{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -460,6 +460,7 @@
 
 </div>
 
+<script src="./drive-backup.js"></script>
 <script>
 (function(){
   'use strict';
@@ -710,15 +711,17 @@
      a un "borrar datos del sitio" ni a desinstalar la PWA. */
   var EXPORT_VERSION = 2;   // v1 guardaba series por ejercicio; se migra al importar
 
-  function exportData(){
-    var payload = {
+  function backupPayload(){
+    return {
       app: 'bitacora-entreno',
       version: EXPORT_VERSION,
       exportedAt: new Date().toISOString(),
       template: state.template,
       sessions: recordedSessions()
     };
-    var blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  }
+  function exportData(){
+    var blob = new Blob([JSON.stringify(backupPayload(), null, 2)], {type:'application/json'});
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
@@ -761,6 +764,53 @@
         setTimeout(function(){ if(exportBtn.isConnected) exportBtn.textContent = 'Exportar a archivo'; }, 3000);
       });
     });
+  }
+
+  // ID público OAuth; no es un secreto. El token de acceso no se persiste.
+  var DRIVE_CLIENT_ID = '48945856675-ufvc8bmn6fdinvsj2qklqar39h7jegud.apps.googleusercontent.com';
+  function wireDriveButton(){
+    var btn = viewEl.querySelector('[data-action="driveBackup"]');
+    var status = viewEl.querySelector('#driveStatus');
+    if(!btn || !status) return;
+    var prepared = false;
+    function prepareDrive(){
+      btn.disabled = true;
+      btn.textContent = 'Conectando con Google…';
+      window.BitacoraDrive.prepare().then(function(){
+        prepared = true;
+        btn.disabled = false;
+        btn.textContent = 'Guardar en Drive';
+      }).catch(function(error){
+        btn.disabled = false;
+        btn.textContent = 'Reintentar conexión con Google';
+        status.textContent = error.message;
+      });
+    }
+    btn.addEventListener('click', function(){
+      if(!prepared){ prepareDrive(); return; }
+      btn.disabled = true;
+      btn.textContent = 'Guardando en Drive…';
+      status.textContent = 'Autorizá el acceso si Google te lo pide.';
+      window.BitacoraDrive.save(DRIVE_CLIENT_ID, backupPayload(), TEST_MODE).then(function(file){
+        state.ui.lastExport = Date.now();
+        state.ui.lastDriveBackup = Date.now();
+        saveUi();
+        var age = viewEl.querySelector('[data-backup-age]');
+        if(age) age.textContent = backupAgeText();
+        status.textContent = 'Copia guardada en tu Drive. ';
+        var link = document.createElement('a');
+        link.href = 'https://drive.google.com/file/d/' + encodeURIComponent(file.id) + '/view';
+        link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.textContent = 'Ver archivo';
+        status.appendChild(link);
+      }).catch(function(error){
+        status.textContent = error.message || 'No se pudo confirmar la copia en Drive.';
+      }).finally(function(){
+        btn.disabled = false;
+        btn.textContent = 'Guardar en Drive';
+      });
+    });
+    prepareDrive();
   }
 
   /* Valida lo justo para no pisar datos buenos con un archivo cualquiera. */
@@ -1624,8 +1674,12 @@
       '<p class="ex-target">Los datos viven solo en este navegador: si borrás los datos del sitio o desinstalás la app, se pierden. ' +
         'Exportá de vez en cuando y guardate el archivo.</p>' +
       '<p class="ex-target"><strong>' + nSessions + '</strong> ' + (nSessions === 1 ? 'sesión guardada' : 'sesiones guardadas') + '. ' +
-        escapeHtml(backupAgeText()) + '</p>' +
+        '<span data-backup-age>' + escapeHtml(backupAgeText()) + '</span></p>' +
       '<button class="btn btn-ghost small" data-action="exportData">Exportar a archivo</button>' +
+      '<button class="btn btn-primary small" type="button" data-action="driveBackup">Guardar en Drive</button>' +
+      '<p class="ex-target">Crea un JSON nuevo en tu Drive cada vez que lo tocás. ' + (TEST_MODE ? 'Modo prueba: la copia se identifica como PRUEBA.' : 'La primera vez te pide autorización con Google.') + '</p>' +
+      '<p class="ex-target" id="driveStatus" role="status" aria-live="polite">' +
+        (state.ui.lastDriveBackup ? 'Última copia en Drive: ' + escapeHtml(new Date(state.ui.lastDriveBackup).toLocaleString('es-AR')) + '.' : '') + '</p>' +
       '<button class="btn btn-ghost small" data-action="importData">Importar desde archivo</button>' +
       '<input type="file" id="importFile" accept="application/json,.json" hidden>' +
     '</div>';
@@ -1749,6 +1803,8 @@
     }
 
     wireExportButton();
+
+    wireDriveButton();
 
     /* Importar pisa todo lo que haya, asi que va con doble confirmacion:
        el primer toque abre el archivo, el segundo aplica. */
@@ -1874,7 +1930,7 @@
         else if(iso === todayIso || iso < first){ cls = 'none'; }
         else { cls = 'miss'; title += ' · no entrenaste'; }
         if(iso === todayIso) cls += ' today';
-        html += '<button type="button" class="cell '+cls+'"'+extra+' style="--c:'+c+'" aria-label="'+escapeHtml(title)+'"></button>';
+        html += '<button type="button" class="cell '+cls+'"'+extra+' style="--c:'+c+'" aria-label="'+escapeHtml(title)+'">'+(cls.split(' ').indexOf('miss') !== -1 ? '<span aria-hidden="true">×</span>' : '')+'</button>';
       }
     }
     html += '</div>';
@@ -1892,7 +1948,7 @@
       '<div class="heat-stat"><b>'+streak+'</b><span>'+(streak === 1 ? 'semana' : 'semanas')+' de racha</span></div>' +
       '<div class="heat-stat"><b>'+trainedDates.length+'</b><span>en total</span></div>' +
     '</div>';
-    var legend = '<div class="heat-legend"><span><i class="l-did"></i>Entrené</span><span><i class="l-miss"></i>No fui</span></div>';
+    var legend = '<div class="heat-legend"><span><i class="l-did"></i>Entrené</span><span><i class="l-miss" aria-hidden="true">×</i>No fui</span></div>';
     return '<div class="card heat-card">' + stats + html + legend + '</div>';
   }
 
@@ -1949,7 +2005,7 @@
   /* ---------- PWA: service worker (no rompe nada si falla) ----------
      El manifest y los theme-color van declarados en el <head>, no inyectados aca. */
   /* APP_VERSION tiene que coincidir con CACHE_NAME en sw.js (bitacora-vNN). */
-  var APP_VERSION = '23';
+  var APP_VERSION = '24';
   var versionPill = document.getElementById('versionPill');
   versionPill.textContent = 'v' + APP_VERSION;
   var swReg = null;
